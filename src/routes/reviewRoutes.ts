@@ -3,7 +3,6 @@ import { ReviewController } from "../controllers/reviewController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { validate } from "../middlewares/validate.js";
 import { createReviewSchema } from "../validators/reviewValidator.js";
-import { logger } from "../utils/logger.js";
 
 const router = Router();
 const reviewController = new ReviewController();
@@ -11,8 +10,8 @@ const reviewController = new ReviewController();
 /**
  * @swagger
  * tags:
- *   name: Review
- *   description: Endpoints de avaliações
+ *   name: Reviews
+ *   description: Endpoints de avaliações de produtos
  */
 
 /**
@@ -20,44 +19,54 @@ const reviewController = new ReviewController();
  * /reviews:
  *   post:
  *     summary: Cria review para produto
- *     tags: [Review]
+ *     description: Permite que um usuário autenticado avalie um produto com nota e comentário.
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               productId: { type: integer }
- *               rating: { type: integer }
- *               comment: { type: string }
+ *           example:
+ *             productId: 10
+ *             rating: 5
+ *             comment: "Produto excelente, recomendo!"
  *     responses:
- *       201: { description: Review criada }
- *       400: { description: Erro de validação }
+ *       201:
+ *         description: Review criada com sucesso
+ *       400:
+ *         description: Erro de validação
  */
-router.post("/", authMiddleware, validate(createReviewSchema), (req, res) => {
-  logger.info("Rota POST /reviews acessada");
-  reviewController.create(req, res);
-});
+router.post("/", authMiddleware, validate(createReviewSchema), (req, res) => reviewController.create(req, res));
 
 /**
  * @swagger
  * /reviews/{productId}:
  *   get:
  *     summary: Lista reviews de um produto
- *     tags: [Review]
+ *     description: Retorna todas as avaliações de um produto específico.
+ *     tags: [Reviews]
  *     parameters:
  *       - in: path
  *         name: productId
  *         required: true
  *         schema: { type: integer }
  *     responses:
- *       200: { description: Reviews retornadas }
- *       404: { description: Nenhuma review encontrada }
+ *       200:
+ *         description: Reviews retornadas
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data:
+ *                 - id: 1
+ *                   productId: 10
+ *                   rating: 5
+ *                   comment: "Ótimo produto"
+ *                   userId: 2
+ *       404:
+ *         description: Nenhuma review encontrada
  */
-router.get("/:productId", (req, res) => {
-  logger.info("Rota GET /reviews/:productId acessada");
-  reviewController.getByProduct(req, res);
-});
+router.get("/:productId", (req, res) => reviewController.getByProduct(req, res));
 
 export default router;

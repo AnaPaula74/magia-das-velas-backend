@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
+dotenv.config(); // ⚠️ Carregado logo no início
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
 import path from "path";
 
 import productRoutes from "./routes/productRoutes.js";
@@ -12,20 +14,17 @@ import orderRoutes from "./routes/orderRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import wishlistRoutes from "./routes/wishlistRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import addressRoutes from "./routes/addressRoutes.js";
 
 import { connection } from "./config/database.js";
 import { logger } from "./utils/logger.js";
 import { errorMiddleware } from "./middlewares/errorMiddleware.js";
-
-// importa swagger
 import { swaggerUi, specs } from "./config/swagger.js";
-
-// carrega variáveis de ambiente
-dotenv.config();
 
 const app = express();
 
-// segurança básica com Helmet
+// Helmet
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -38,15 +37,16 @@ app.use(
   })
 );
 
-// rate limit global
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { success: false, error: "Muitas requisições, tente novamente mais tarde." },
-});
-app.use(limiter);
+// Rate limit global
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { success: false, error: "Muitas requisições, tente novamente mais tarde." },
+  })
+);
 
-// rate limit específico para login
+// Rate limit login
 app.use(
   "/auth/login",
   rateLimit({
@@ -56,16 +56,11 @@ app.use(
   })
 );
 
-// habilita CORS
 app.use(cors({ origin: "*", credentials: true }));
-
-// parse de JSON
 app.use(express.json());
-
-// servir arquivos estáticos
 app.use("/uploads", express.static(path.resolve("uploads")));
 
-// rotas principais
+// Rotas
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
@@ -73,17 +68,19 @@ app.use("/orders", orderRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/wishlist", wishlistRoutes);
+app.use("/api/v1", categoryRoutes);
+app.use("/api/v1", addressRoutes);
 
-// rota da documentação Swagger
+// Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-// rota raiz
+// Rota raiz
 app.get("/", (_req, res) => {
   logger.info("Rota raiz '/' acessada");
   res.json({ success: true, message: "API rodando" });
 });
 
-// health check
+// Health check
 app.get("/health", (_req, res) => {
   logger.info("Health check acessado");
   res.json({
@@ -94,7 +91,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// teste de conexão com banco
+// Teste de conexão
 app.get("/db-test", async (_req, res) => {
   try {
     const [rows] = await connection.query("SELECT 1 + 1 AS result");
@@ -106,7 +103,6 @@ app.get("/db-test", async (_req, res) => {
   }
 });
 
-// middleware global de erros
 app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 3000;

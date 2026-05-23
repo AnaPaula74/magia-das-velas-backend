@@ -3,7 +3,6 @@ import { CartController } from "../controllers/cartController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { validate } from "../middlewares/validate.js";
 import { addCartSchema, updateCartSchema } from "../validators/cartValidator.js";
-import { logger } from "../utils/logger.js";
 
 const router = Router();
 const cartController = new CartController();
@@ -25,19 +24,16 @@ const cartController = new CartController();
  *       required: true
  *       content:
  *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               productId: { type: integer }
- *               quantity: { type: integer }
+ *           example:
+ *             productId: 10
+ *             quantity: 2
  *     responses:
- *       201: { description: Produto adicionado }
- *       400: { description: Erro de validação }
+ *       201:
+ *         description: Produto adicionado
+ *       400:
+ *         description: Erro de validação
  */
-router.post("/", authMiddleware, validate(addCartSchema), (req, res) => {
-  logger.info("Rota POST /cart acessada");
-  cartController.add(req, res);
-});
+router.post("/", authMiddleware, validate(addCartSchema), (req, res) => cartController.add(req, res));
 
 /**
  * @swagger
@@ -46,13 +42,12 @@ router.post("/", authMiddleware, validate(addCartSchema), (req, res) => {
  *     summary: Lista itens do carrinho
  *     tags: [Cart]
  *     responses:
- *       200: { description: Carrinho retornado }
- *       404: { description: Carrinho vazio }
+ *       200:
+ *         description: Carrinho retornado
+ *       404:
+ *         description: Carrinho vazio
  */
-router.get("/", authMiddleware, (req, res) => {
-  logger.info("Rota GET /cart acessada");
-  cartController.get(req, res);
-});
+router.get("/", authMiddleware, (req, res) => cartController.get(req, res));
 
 /**
  * @swagger
@@ -65,14 +60,19 @@ router.get("/", authMiddleware, (req, res) => {
  *         name: id
  *         required: true
  *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             quantity: 3
  *     responses:
- *       200: { description: Quantidade atualizada }
- *       404: { description: Item não encontrado }
+ *       200:
+ *         description: Quantidade atualizada
+ *       404:
+ *         description: Item não encontrado
  */
-router.put("/:id", authMiddleware, validate(updateCartSchema), (req, res) => {
-  logger.info("Rota PUT /cart/:id acessada");
-  cartController.update(req, res);
-});
+router.put("/:id", authMiddleware, validate(updateCartSchema), (req, res) => cartController.update(req, res));
 
 /**
  * @swagger
@@ -86,12 +86,11 @@ router.put("/:id", authMiddleware, validate(updateCartSchema), (req, res) => {
  *         required: true
  *         schema: { type: integer }
  *     responses:
- *       200: { description: Item removido }
- *       404: { description: Item não encontrado }
+ *       200:
+ *         description: Item removido
+ *       404:
+ *         description: Item não encontrado
  */
-router.delete("/:id", authMiddleware, (req, res) => {
-  logger.info("Rota DELETE /cart/:id acessada");
-  cartController.remove(req, res);
-});
+router.delete("/:id", authMiddleware, (req, res) => cartController.remove(req, res));
 
 export default router;
