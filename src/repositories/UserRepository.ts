@@ -1,25 +1,39 @@
 import { connection } from "../config/database.js";
 import { logger } from "../utils/logger.js";
-import { NotFoundError } from "../errors/customErrors.js";
+import { NotFoundError, ConflictError } from "../errors/customErrors.js";
+import type { User } from "../models/User.js";
 
 export default class UserRepository {
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<User> {
     const [rows]: any = await connection.query("SELECT * FROM users WHERE email = ?", [email]);
     const user = rows[0];
-    // lança erro se usuário não existir
     if (!user) {
       logger.warn(`Usuário não encontrado: ${email}`);
       throw new NotFoundError("Usuário não encontrado");
     }
-    return user;
+    return user as User;
   }
 
-  async create(name: string, email: string, password: string) {
-    const [result] = await connection.query(
+  async create(name: string, email: string, password: string): Promise<User> {
+    // checa se já existe
+    const [existing]: any = await connection.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existing.length > 0) {
+      logger.warn(`Tentativa de criar usuário duplicado: ${email}`);
+      throw new ConflictError("Email já cadastrado");
+    }
+
+    const [result]: any = await connection.query(
       "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
       [name, email, password]
     );
+
     logger.info(`Usuário criado: ${email}`);
-    return result;
+
+    return {
+      id: result.insertId,
+      name,
+      email,
+      password,
+    } as User;
   }
 }
