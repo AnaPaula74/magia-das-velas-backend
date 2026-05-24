@@ -1,11 +1,11 @@
 import type { Request, Response } from "express";
-import CategoryRepository from "../repositories/categoryRepository.js";
+import CategoryService from "../services/categoryService.js";
 
-const repo = new CategoryRepository();
+const service = new CategoryService();
 
 export const listCategories = async (req: Request, res: Response) => {
   try {
-    const categories = await repo.getAll();
+    const categories = await service.listCategories();
     res.json(categories);
   } catch (error) {
     res.status(500).json({ message: "Erro ao listar categorias", error });
@@ -14,7 +14,7 @@ export const listCategories = async (req: Request, res: Response) => {
 
 export const getCategory = async (req: Request, res: Response) => {
   try {
-    const category = await repo.getById(Number(req.params.id));
+    const category = await service.getCategory(Number(req.params.id));
     if (!category) return res.status(404).json({ message: "Categoria não encontrada" });
     res.json(category);
   } catch (error) {
@@ -25,18 +25,21 @@ export const getCategory = async (req: Request, res: Response) => {
 export const addCategory = async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
-    if (!name) return res.status(400).json({ message: "Nome é obrigatório" });
-    await repo.create(name, description);
+    await service.createCategory(name, description);
     res.status(201).json({ message: "Categoria criada com sucesso" });
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao criar categoria", error });
+  } catch (error: any) {
+    if (error.message === "Categoria já existe") {
+      res.status(400).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: "Erro ao criar categoria", error });
+    }
   }
 };
 
 export const updateCategory = async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
-    await repo.update(Number(req.params.id), name, description);
+    await service.updateCategory(Number(req.params.id), name, description);
     res.json({ message: "Categoria atualizada com sucesso" });
   } catch (error) {
     res.status(500).json({ message: "Erro ao atualizar categoria", error });
@@ -45,7 +48,7 @@ export const updateCategory = async (req: Request, res: Response) => {
 
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
-    await repo.delete(Number(req.params.id));
+    await service.deleteCategory(Number(req.params.id));
     res.json({ message: "Categoria removida com sucesso" });
   } catch (error) {
     res.status(500).json({ message: "Erro ao remover categoria", error });
