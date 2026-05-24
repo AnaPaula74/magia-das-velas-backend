@@ -14,8 +14,12 @@ export default class UserRepository {
     return user as User;
   }
 
+  async getById(id: number): Promise<User | null> {
+    const [rows]: any = await connection.query("SELECT * FROM users WHERE id = ?", [id]);
+    return rows[0] || null;
+  }
+
   async create(name: string, email: string, password: string): Promise<User> {
-    // checa se já existe
     const [existing]: any = await connection.query("SELECT id FROM users WHERE email = ?", [email]);
     if (existing.length > 0) {
       logger.warn(`Tentativa de criar usuário duplicado: ${email}`);
@@ -35,5 +39,18 @@ export default class UserRepository {
       email,
       password,
     } as User;
+  }
+
+  async updateProfile(id: number, name: string, email: string, phone: string): Promise<void> {
+    const [rows]: any = await connection.query("SELECT id FROM users WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      throw new NotFoundError("Usuário não encontrado");
+    }
+
+    await connection.query(
+      "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?",
+      [name, email, phone, id]
+    );
+    logger.info(`Perfil atualizado: ${id}`);
   }
 }
