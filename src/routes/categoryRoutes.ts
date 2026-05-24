@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { listCategories, getCategory, addCategory, updateCategory, deleteCategory } from "../controllers/categoryController.js";
+import { validate } from "../middlewares/validate.js";
+import { categorySchema } from "../validators/categoryValidator.js";
 
 const router = Router();
 
@@ -28,7 +30,7 @@ const router = Router();
  *             description: "Velas aromáticas e religiosas"
  */
 router.get("/categories", listCategories);
-router.post("/categories", addCategory);
+router.post("/categories", validate(categorySchema), addCategory);
 
 /**
  * @swagger
@@ -44,7 +46,7 @@ router.post("/categories", addCategory);
  *     tags: [Categories]
  */
 router.get("/categories/:id", getCategory);
-router.put("/categories/:id", updateCategory);
+router.put("/categories/:id", validate(categorySchema), updateCategory);
 router.delete("/categories/:id", deleteCategory);
 
 export default router;
