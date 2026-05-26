@@ -22,16 +22,16 @@ const options: swaggerJsdoc.Options = {
     ],
     tags: [
       { name: "Auth", description: "Autenticação e recuperação de senha" },
-      { name: "Products", description: "Catálogo e gerenciamento de produtos" },
-      { name: "Categories", description: "Categorias de produtos" },
-      { name: "Cart", description: "Carrinho de compras" },
-      { name: "Orders", description: "Pedidos e checkout" },
-      { name: "Payments", description: "Pagamentos e webhooks" },
-      { name: "Reviews", description: "Avaliações de produtos" },
-      { name: "Wishlist", description: "Lista de favoritos" },
-      { name: "Addresses", description: "Endereços do usuário" },
       { name: "Users", description: "Perfil do usuário" },
-      { name: "Dashboard", description: "Estatísticas administrativas" },
+      { name: "Products", description: "Produtos" },
+      { name: "Categories", description: "Categorias" },
+      { name: "Cart", description: "Carrinho" },
+      { name: "Orders", description: "Pedidos" },
+      { name: "Payments", description: "Pagamentos" },
+      { name: "Reviews", description: "Avaliações" },
+      { name: "Wishlist", description: "Favoritos" },
+      { name: "Addresses", description: "Endereços" },
+      { name: "Dashboard", description: "Dashboard administrativo" },
     ],
     components: {
       securitySchemes: {
@@ -53,90 +53,94 @@ const options: swaggerJsdoc.Options = {
           type: "object",
           properties: {
             success: { type: "boolean", example: true },
-            message: { type: "string", example: "Operação realizada com sucesso" },
+            message: {
+              type: "string",
+              example: "Operação realizada com sucesso",
+            },
             data: { type: "object" },
           },
         },
-        User: {
+        RegisterInput: {
           type: "object",
+          required: ["name", "email", "password"],
           properties: {
-            id: { type: "integer", example: 1 },
             name: { type: "string", example: "Ana Paula" },
             email: { type: "string", example: "ana@email.com" },
-            role: { type: "string", example: "user" },
-            phone: { type: "string", example: "+5522999999999" },
+            password: { type: "string", example: "senha12345" },
           },
         },
-        Product: {
+        LoginInput: {
           type: "object",
+          required: ["email", "password"],
           properties: {
-            id: { type: "integer", example: 1 },
+            email: { type: "string", example: "ana@email.com" },
+            password: { type: "string", example: "senha12345" },
+          },
+        },
+        ProductInput: {
+          type: "object",
+          required: ["name", "description", "price", "stock"],
+          properties: {
             name: { type: "string", example: "Vela de Limpeza Espiritual" },
-            description: { type: "string", example: "Vela artesanal para limpeza energética." },
-            price: { type: "number", example: 29.9 },
-            image_url: { type: "string", example: "/uploads/vela.webp" },
+            description: {
+              type: "string",
+              example: "Vela artesanal para limpeza energética.",
+            },
+            price: { type: "number", example: 39.9 },
             stock: { type: "integer", example: 20 },
-            created_at: { type: "string", format: "date-time" },
+            categoryId: { type: "integer", example: 1 },
           },
         },
-        Category: {
+        CategoryInput: {
           type: "object",
+          required: ["name"],
           properties: {
-            id: { type: "integer", example: 1 },
             name: { type: "string", example: "Velas" },
-            description: { type: "string", example: "Velas ritualísticas e aromáticas" },
-            created_at: { type: "string", format: "date-time" },
+            description: {
+              type: "string",
+              example: "Velas ritualísticas e aromáticas",
+            },
           },
         },
-        CartItem: {
+        AddressInput: {
           type: "object",
+          required: ["street", "city", "state", "zip"],
           properties: {
-            id: { type: "integer", example: 1 },
-            user_id: { type: "integer", example: 1 },
-            product_id: { type: "integer", example: 2 },
-            quantity: { type: "integer", example: 3 },
-          },
-        },
-        Order: {
-          type: "object",
-          properties: {
-            id: { type: "integer", example: 1 },
-            user_id: { type: "integer", example: 1 },
-            total: { type: "number", example: 89.7 },
-            status: { type: "string", example: "pending" },
-            created_at: { type: "string", format: "date-time" },
-          },
-        },
-        Review: {
-          type: "object",
-          properties: {
-            id: { type: "integer", example: 1 },
-            user_id: { type: "integer", example: 1 },
-            product_id: { type: "integer", example: 2 },
-            rating: { type: "integer", example: 5 },
-            comment: { type: "string", example: "Produto excelente!" },
-          },
-        },
-        Address: {
-          type: "object",
-          properties: {
-            id: { type: "integer", example: 1 },
-            user_id: { type: "integer", example: 1 },
             street: { type: "string", example: "Rua das Flores, 123" },
             city: { type: "string", example: "Araruama" },
             state: { type: "string", example: "RJ" },
             zip: { type: "string", example: "28970-000" },
           },
         },
-        Payment: {
+        CartInput: {
           type: "object",
+          required: ["productId", "quantity"],
           properties: {
-            id: { type: "integer", example: 1 },
-            payment_id: { type: "string", example: "123456789" },
-            method: { type: "string", example: "pix" },
-            amount: { type: "number", example: 59.9 },
-            status: { type: "string", example: "pending" },
-            description: { type: "string", example: "Compra de velas" },
+            productId: { type: "integer", example: 1 },
+            quantity: { type: "integer", example: 2 },
+          },
+        },
+        ReviewInput: {
+          type: "object",
+          required: ["productId", "rating"],
+          properties: {
+            productId: { type: "integer", example: 1 },
+            rating: { type: "integer", example: 5 },
+            comment: { type: "string", example: "Produto excelente!" },
+          },
+        },
+        WishlistInput: {
+          type: "object",
+          required: ["productId"],
+          properties: {
+            productId: { type: "integer", example: 1 },
+          },
+        },
+        PaymentInput: {
+          type: "object",
+          required: ["orderId"],
+          properties: {
+            orderId: { type: "integer", example: 1 },
           },
         },
       },
