@@ -1,25 +1,54 @@
 import { z } from "zod";
 
-// validação para registro
 export const registerSchema = z.object({
-  name: z.string().min(2, "Nome muito curto"),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha muito curta"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Nome deve ter pelo menos 2 caracteres"),
+
+  email: z
+    .string()
+    .trim()
+    .email("E-mail inválido")
+    .toLowerCase(),
+
+  password: z
+    .string()
+    .min(8, "Senha deve ter pelo menos 8 caracteres"),
 });
 
-// validação para login
 export const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha muito curta"),
+  email: z
+    .string()
+    .trim()
+    .email("E-mail inválido")
+    .toLowerCase(),
+
+  password: z
+    .string()
+    .min(1, "Senha obrigatória"),
 });
 
-// validação para forgot-password
+export const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string()
+    .min(1, "Refresh token obrigatório"),
+});
+
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Email inválido"),
+  email: z
+    .string()
+    .trim()
+    .email("E-mail inválido")
+    .toLowerCase(),
 });
 
-// validação para reset-password
 export const resetPasswordSchema = z.object({
-  token: z.string().min(10, "Token inválido"),
-  newPassword: z.string().min(6, "Senha muito curta"),
+  token: z
+    .string()
+    .min(1, "Token obrigatório"),
+
+  password: z
+    .string()
+    .min(8, "Senha deve ter pelo menos 8 caracteres"),
 });

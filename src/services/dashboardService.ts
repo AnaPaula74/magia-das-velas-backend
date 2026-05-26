@@ -1,33 +1,50 @@
-import { connection } from "../config/database.js";
-import { logger } from "../utils/logger.js";
 import { ValidationError } from "../errors/customErrors.js";
+import DashboardRepository from "../repositories/dashboardRepository.js";
 
 export default class DashboardService {
-  async getStats() {
-    const [products]: any = await connection.query("SELECT COUNT(*) as totalProducts FROM products");
-    if (!products.length) throw new ValidationError("Não foi possível calcular estatísticas");
-    const [users]: any = await connection.query("SELECT COUNT(*) as totalUsers FROM users");
-    const [orders]: any = await connection.query("SELECT COUNT(*) as totalOrders FROM orders");
-    const [sales]: any = await connection.query("SELECT COALESCE(SUM(total), 0) as totalSales FROM orders");
+  constructor(private dashboardRepository = new DashboardRepository()) {}
 
-    return {
-      totalProducts: products[0].totalProducts,
-      totalUsers: users[0].totalUsers,
-      totalOrders: orders[0].totalOrders,
-      totalSales: sales[0].totalSales,
-    };
+  async getStats() {
+    const stats = await this.dashboardRepository.getStats();
+
+    if (!stats) {
+      throw new ValidationError("Não foi possível calcular estatísticas");
+    }
+
+    return stats;
   }
 
-  async topProducts() {
-    const [rows]: any = await connection.query(
-      `SELECT products.name, COUNT(order_items.product_id) as totalSold
-       FROM order_items
-       JOIN products ON products.id = order_items.product_id
-       GROUP BY order_items.product_id
-       ORDER BY totalSold DESC
-       LIMIT 5`
-    );
-    if (!rows.length) throw new ValidationError("Nenhum produto vendido encontrado");
+  async topProducts(limit = 5) {
+    const rows = await this.dashboardRepository.topProducts(limit);
+
+    if (!rows.length) {
+      throw new ValidationError("Nenhum produto vendido encontrado");
+    }
+
     return rows;
+  }
+
+  async getSalesReport(startDate?: Date, endDate?: Date) {
+    if (startDate && endDate && startDate > endDate) {
+      throw new ValidationError("Data inicial não pode ser maior que a data final");
+    }
+
+    const report = await this.dashboardRepository.getSalesReport(startDate, endDate);
+
+    if (!report) {
+      throw new ValidationError("Não foi possível gerar relatório de vendas");
+    }
+
+    return report;
+  }
+
+  async getUserMetrics() {
+    const metrics = await this.dashboardRepository.getUserMetrics();
+
+    if (!metrics) {
+      throw new ValidationError("Não foi possível calcular métricas de usuários");
+    }
+
+    return metrics;
   }
 }

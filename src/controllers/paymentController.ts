@@ -1,86 +1,203 @@
 import type { Request, Response } from "express";
+
 import { PaymentService } from "../services/paymentService.js";
+import AuditService from "../services/auditService.js";
+import type { CreatePixPaymentDTO } from "../dtos/payment/createPixPayment.dto.js";
+import type { CreateMercadoPagoPaymentDTO } from "../dtos/payment/createMercadoPagoPayment.dto.js";
+import { validateMercadoPagoWebhook } from "../utils/mercadoPagoWebhook.js";
+import { success, failure } from "../utils/httpResponses.js";
+import { getErrorMessage, getErrorStatus } from "../utils/errorHandler.js";
 import { logger } from "../utils/logger.js";
 
 export class PaymentController {
-  private service = new PaymentService(); 
-
-//Criar pagamento Pix
+  constructor(
+    private paymentService = new PaymentService(),
+    private auditService = new AuditService()
+  ) {}
 
   async createPixPayment(req: Request, res: Response) {
     try {
-      const { amount, description, email } = req.body;
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
 
-      const pixData = await this.service.generatePixMercadoPago({
-        amount,
-        description,
-        email,
-      });
+      const orderId = Number(req.body.orderId);
 
-      return res.status(201).json({
-        success: true,
-        message: "Pagamento Pix criado com sucesso",
-        data: pixData,
-      });
-    } catch (error: any) {
-      logger.error("Erro ao criar pagamento Pix", {
-        error: error.message,
-      });
+      if (isNaN(orderId) || orderId <= 0) {
+        return failure(res, 400, "ID do pedido inválido");
+      }
 
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
+      const dto: CreatePixPaymentDTO = {
+        userId: req.user.id,
+        orderId,
+      };
+
+      const pixData = await this.paymentService.generatePixMercadoPago(dto);
+
+      await this.auditService.log(
+        dto.userId,
+        "PIX_PAYMENT",
+        `Pagamento Pix criado para pedido ${dto.orderId}`
+      );
+
+      logger.info(`Pagamento Pix criado para pedido ${orderId} do usuário ${req.user.id}`);
+
+      return success(res, 201, "Pagamento Pix criado", pixData);
+    } catch (error: unknown) {
+      logger.error("Erro ao criar pagamento Pix", { userId: req.user?.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao criar pagamento Pix")
+      );
     }
   }
- 
-  // Criar pagamento Mercado Pago
 
   async createMercadoPagoPayment(req: Request, res: Response) {
     try {
-      const { amount, description } = req.body;
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
 
-      const paymentData = await this.service.generateMercadoPago({
-        amount,
-        description,
-      });
+      const orderId = Number(req.body.orderId);
 
-      return res.status(201).json({
-        success: true,
-        message: "Checkout Mercado Pago criado com sucesso",
-        data: paymentData,
-      });
-    } catch (error: any) {
-      logger.error("Erro ao criar checkout Mercado Pago", {
-        error: error.message,
-      });
+      if (isNaN(orderId) || orderId <= 0) {
+        return failure(res, 400, "ID do pedido inválido");
+      }
 
-      return res.status(500).json({
-        success: false,
-        error: error.message,
-      });
+      const dto: CreateMercadoPagoPaymentDTO = {
+        userId: req.user.id,
+        orderId,
+      };
+
+      const paymentData = await this.paymentService.generateMercadoPago(dto);
+
+      await this.auditService.log(
+        dto.userId,
+        "MERCADO_PAGO_PAYMENT",
+        `Checkout Mercado Pago criado para pedido ${dto.orderId}`
+      );
+
+      logger.info(
+        `Checkout Mercado Pago criado para pedido ${orderId} do usuário ${req.user.id}`
+      );
+
+      return success(res, 201, "Checkout Mercado Pago criado", paymentData);
+    } catch (error: unknown) {
+      logger.error("Erro ao criar pagamento Mercado Pago", { userId: req.user?.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao criar pagamento Mercado Pago")
+      );
     }
   }
 
-    //Webhook Mercado Pago
-    
+  async getPaymentStatus(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const paymentId = String(req.params.id ?? "").trim();
+
+      if (!paymentId) {
+        return failure(res, 400, "ID do pagamento inválido");
+      }
+
+      const status = await this.paymentService.getPaymentStatus(paymentId, req.user.id);
+
+      logger.info(`Status do pagamento ${paymentId} consultado pelo usuário ${req.user.id}`);
+
+      return success(res, 200, "Status do pagamento retornado com sucesso", status);
+    } catch (error: unknown) {
+      logger.error("Erro ao consultar status do pagamento", {
+        paymentId: req.params.id,
+        userId: req.user?.id,
+        error,
+      });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao consultar status do pagamento")
+      );
+    }
+  }
+
   async handleWebhook(req: Request, res: Response) {
     try {
-      await this.service.processWebhook(req.body);
+      try {
+        validateMercadoPagoWebhook(req);
+      } catch (error: unknown) {
+        logger.warn("Webhook com assinatura inválida recebido", { error });
+        return failure(
+          res,
+          getErrorStatus(error),
+          getErrorMessage(error, "Webhook sem assinatura válida")
+        );
+      }
 
-      return res.status(200).json({
-        success: true,
-        message: "Webhook processado com sucesso",
-      });
-    } catch (error: any) {
-      logger.error("Erro no webhook Mercado Pago", {
-        error: error.message,
-      });
+      const webhookId = req.body?.id ?? req.body?.data?.id;
 
-      return res.status(400).json({
-        success: false,
-        error: error.message,
+      if (!req.body || !webhookId) {
+        logger.warn("Webhook sem dados válidos recebido");
+        return failure(res, 400, "Dados do webhook inválidos");
+      }
+
+      await this.paymentService.processWebhook(req.body);
+
+      await this.auditService.log(
+        0,
+        "WEBHOOK",
+        "Webhook Mercado Pago processado"
+      );
+
+      logger.info(`Webhook Mercado Pago processado: ${webhookId}`);
+
+      return success(res, 200, "Webhook processado");
+    } catch (error: unknown) {
+      logger.error("Erro ao processar webhook", { error });
+      return success(res, 200, "Webhook recebido");
+    }
+  }
+
+  async cancelPayment(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const paymentId = String(req.params.id ?? "").trim();
+
+      if (!paymentId) {
+        return failure(res, 400, "ID do pagamento inválido");
+      }
+
+      const result = await this.paymentService.cancelPayment(paymentId, req.user.id);
+
+      await this.auditService.log(
+        req.user.id,
+        "PAYMENT_CANCELLED",
+        `Pagamento ${paymentId} cancelado`
+      );
+
+      logger.info(`Pagamento ${paymentId} cancelado pelo usuário ${req.user.id}`);
+
+      return success(res, 200, "Pagamento cancelado com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao cancelar pagamento", {
+        paymentId: req.params.id,
+        userId: req.user?.id,
+        error,
       });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao cancelar pagamento")
+      );
     }
   }
 }
+
+const controller = new PaymentController();
+export default controller;

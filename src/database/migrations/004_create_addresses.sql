@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS addresses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+
+  user_id INT NOT NULL,
+
+  street VARCHAR(255) NOT NULL,
+  number VARCHAR(50) NULL,
+  neighborhood VARCHAR(120) NULL,
+  city VARCHAR(120) NOT NULL,
+  state VARCHAR(120) NOT NULL,
+  zip VARCHAR(20) NOT NULL,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_addresses_user
+    FOREIGN KEY (user_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX idx_addresses_user_id
+  ON addresses(user_id);

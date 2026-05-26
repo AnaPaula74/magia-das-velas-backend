@@ -1,46 +1,99 @@
 import jwt from "jsonwebtoken";
-import { ConfigError, UnauthorizedError } from "../errors/customErrors.js";
+import { randomUUID } from "crypto";
+import { env } from "../config/env.js";
+import { UnauthorizedError } from "../errors/customErrors.js";
 
-function getEnvVar(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new ConfigError(`Variável de ambiente ${name} não configurada`);
-  }
-  return value;
+export interface JwtUserPayload {
+  id: number;
+  email: string;
+  role: string;
 }
 
-export function signAccessToken(payload: object) {
-  const secret = getEnvVar("JWT_SECRET");
-  return jwt.sign(payload, secret, {
-    expiresIn: "15m",
-    issuer: "magia-das-velas-api",
-    audience: "users",
-  });
+export interface AccessTokenPayload extends JwtUserPayload {
+  type: "access";
 }
 
-export function signRefreshToken(payload: object) {
-  const refreshSecret = getEnvVar("JWT_REFRESH_SECRET");
-  return jwt.sign(payload, refreshSecret, {
-    expiresIn: "7d",
-    issuer: "magia-das-velas-api",
-    audience: "users",
-  });
+export interface RefreshTokenPayload extends JwtUserPayload {
+  type: "refresh";
+  jti: string;
 }
 
-export function verifyAccessToken(token: string) {
-  const secret = getEnvVar("JWT_SECRET");
+const issuer = "magia-das-velas-api";
+const audience = "magia-das-velas-client";
+
+export function signAccessToken(user: JwtUserPayload): string {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      type: "access",
+    },
+    env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+      issuer,
+      audience,
+    }
+  );
+}
+
+export function signRefreshToken(user: JwtUserPayload): string {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      type: "refresh",
+      jti: randomUUID(),
+    },
+    env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: "7d",
+      issuer,
+      audience,
+    }
+  );
+}
+
+export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
-    return jwt.verify(token, secret, { issuer: "magia-das-velas-api", audience: "users" });
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      issuer,
+      audience,
+    }) as AccessTokenPayload;
+
+    if (decoded.type !== "access") {
+      throw new UnauthorizedError("Token inválido");
+    }
+
+    return decoded;
   } catch {
     throw new UnauthorizedError("Token inválido ou expirado");
   }
 }
 
-export function verifyRefreshToken(token: string) {
-  const refreshSecret = getEnvVar("JWT_REFRESH_SECRET");
+export function verifyRefreshToken(token: string): RefreshTokenPayload {
   try {
-    return jwt.verify(token, refreshSecret, { issuer: "magia-das-velas-api", audience: "users" });
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET, {
+      issuer,
+      audience,
+    }) as RefreshTokenPayload;
+
+    if (decoded.type !== "refresh") {
+      throw new UnauthorizedError("Refresh token inválido");
+    }
+
+    return decoded;
   } catch {
-    throw new UnauthorizedError("Refresh token inválido");
+    throw new UnauthorizedError("Refresh token inválido ou expirado");
   }
+}
+
+export function getRefreshTokenExpiresAt(): Date {
+  const expiresAt = new Date();
+
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  return expiresAt;
 }

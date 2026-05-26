@@ -1,69 +1,36 @@
 import { Router } from "express";
-import { listAddresses, addAddress, updateAddress, deleteAddress } from "../controllers/addressController.js";
+import controller from "../controllers/addressController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { validate } from "../middlewares/validate.js";
+import {
+  addressSchema,
+  updateAddressSchema,
+} from "../validators/addressValidator.js";
+import { idParamSchema } from "../validators/commonValidator.js";
 
 const router = Router();
 
-/**
- * @swagger
- * tags:
- *   name: Addresses
- *   description: Endpoints de endereços de entrega
- */
+router.get("/", authMiddleware, (req, res) =>
+  controller.list(req, res)
+);
 
-/**
- * @swagger
- * /addresses:
- *   get:
- *     summary: Lista endereços do usuário autenticado
- *     tags: [Addresses]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Lista de endereços
- *         content:
- *           application/json:
- *             example:
- *               success: true
- *               data:
- *                 - id: 1
- *                   street: "Rua das Flores"
- *                   city: "Rio de Janeiro"
- *                   state: "RJ"
- *                   zip: "22000-000"
- *   post:
- *     summary: Cria novo endereço
- *     tags: [Addresses]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             street: "Av. Brasil"
- *             city: "São Pedro da Aldeia"
- *             state: "RJ"
- *             zip: "28940-000"
- *     responses:
- *       201:
- *         description: Endereço criado
- */
-router.get("/addresses", authMiddleware, listAddresses);
-router.post("/addresses", authMiddleware, addAddress);
+router.post("/", authMiddleware, validate(addressSchema), (req, res) =>
+  controller.create(req, res)
+);
 
-/**
- * @swagger
- * /addresses/{id}:
- *   put:
- *     summary: Atualiza endereço
- *     tags: [Addresses]
- *   delete:
- *     summary: Remove endereço
- *     tags: [Addresses]
- */
-router.put("/addresses/:id", authMiddleware, updateAddress);
-router.delete("/addresses/:id", authMiddleware, deleteAddress);
+router.put(
+  "/:id",
+  authMiddleware,
+  validate(idParamSchema, "params"),
+  validate(updateAddressSchema),
+  (req, res) => controller.update(req, res)
+);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  validate(idParamSchema, "params"),
+  (req, res) => controller.delete(req, res)
+);
 
 export default router;

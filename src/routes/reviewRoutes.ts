@@ -2,24 +2,23 @@ import { Router } from "express";
 import { ReviewController } from "../controllers/reviewController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { validate } from "../middlewares/validate.js";
-import { createReviewSchema } from "../validators/reviewValidator.js";
+import {
+  createReviewSchema,
+  updateReviewSchema,
+} from "../validators/reviewValidator.js";
+import {
+  idParamSchema,
+  productIdParamSchema,
+} from "../validators/commonValidator.js";
 
 const router = Router();
-const reviewController = new ReviewController();
-
-/**
- * @swagger
- * tags:
- *   name: Reviews
- *   description: Endpoints de avaliações de produtos
- */
+const controller = new ReviewController();
 
 /**
  * @swagger
  * /reviews:
  *   post:
- *     summary: Cria review para produto
- *     description: Permite que um usuário autenticado avalie um produto com nota e comentário.
+ *     summary: Cria avaliação de produto
  *     tags: [Reviews]
  *     security:
  *       - bearerAuth: []
@@ -27,46 +26,75 @@ const reviewController = new ReviewController();
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             productId: 10
- *             rating: 5
- *             comment: "Produto excelente, recomendo!"
+ *           schema:
+ *             type: object
+ *             required: [productId, rating]
+ *             properties:
+ *               productId:
+ *                 type: integer
+ *                 example: 1
+ *               rating:
+ *                 type: integer
+ *                 example: 5
+ *               comment:
+ *                 type: string
+ *                 example: Produto excelente.
  *     responses:
  *       201:
- *         description: Review criada com sucesso
+ *         description: Avaliação criada
  *       400:
- *         description: Erro de validação
+ *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       409:
+ *         description: Usuário já avaliou este produto
  */
-router.post("/", authMiddleware, validate(createReviewSchema), (req, res) => reviewController.create(req, res));
+router.post(
+  "/",
+  authMiddleware,
+  validate(createReviewSchema),
+  (req, res) => controller.create(req, res)
+);
 
 /**
  * @swagger
  * /reviews/{productId}:
  *   get:
- *     summary: Lista reviews de um produto
- *     description: Retorna todas as avaliações de um produto específico.
+ *     summary: Lista avaliações de um produto
  *     tags: [Reviews]
  *     parameters:
  *       - in: path
  *         name: productId
  *         required: true
- *         schema: { type: integer }
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID do produto
  *     responses:
  *       200:
- *         description: Reviews retornadas
- *         content:
- *           application/json:
- *             example:
- *               success: true
- *               data:
- *                 - id: 1
- *                   productId: 10
- *                   rating: 5
- *                   comment: "Ótimo produto"
- *                   userId: 2
- *       404:
- *         description: Nenhuma review encontrada
+ *         description: Avaliações listadas
+ *       400:
+ *         description: ID do produto inválido
  */
-router.get("/:productId", (req, res) => reviewController.getByProduct(req, res));
+router.get(
+  "/:productId",
+  validate(productIdParamSchema, "params"),
+  (req, res) => controller.getByProduct(req, res)
+);
+
+router.put(
+  "/:id",
+  authMiddleware,
+  validate(idParamSchema, "params"),
+  validate(updateReviewSchema),
+  (req, res) => controller.update(req, res)
+);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  validate(idParamSchema, "params"),
+  (req, res) => controller.delete(req, res)
+);
 
 export default router;

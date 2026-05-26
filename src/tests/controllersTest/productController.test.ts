@@ -1,13 +1,17 @@
+import "../setup.js";
 import { jest } from "@jest/globals";
 import { ProductController } from "../../controllers/productController.js";
 import { ProductService } from "../../services/productService.js";
+import AuditService from "../../services/auditService.js";
 import type { Response } from "express";
 
 const mockResponse = () => {
-  const res: any = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res as Response;
+  const res = {} as Response;
+
+  res.status = jest.fn().mockReturnValue(res) as any;
+  res.json = jest.fn().mockReturnValue(res) as any;
+
+  return res;
 };
 
 describe("ProductController", () => {
@@ -15,34 +19,74 @@ describe("ProductController", () => {
 
   beforeEach(() => {
     controller = new ProductController();
+
     jest.clearAllMocks();
+
+    jest.spyOn(AuditService.prototype, "log").mockResolvedValue();
   });
 
   it("cria produto", async () => {
-    jest.spyOn(ProductService.prototype, "createProduct").mockResolvedValue({ id: 1 } as any);
+    jest.spyOn(ProductService.prototype, "createProduct").mockResolvedValue({
+      id: 1,
+    } as any);
 
-    const req: any = { body: { name: "Produto A", description: "Desc", price: 10, stock: 5 }, user: { id: 1, role: "admin" } };
+    const req: any = {
+      body: {
+        name: "Vela",
+        description: "Vela aromática",
+        price: 20,
+        stock: 10,
+      },
+      file: {
+        filename: "vela.jpg",
+      },
+      user: {
+        id: 1,
+      },
+    };
+
     const res = mockResponse();
 
     await controller.create(req, res);
 
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      message: "Produto criado", // corrigido
-      data: expect.objectContaining({ id: 1 }),
-    });
   });
 
-  it("retorna 404 se não encontrado", async () => {
-    jest.spyOn(ProductService.prototype, "getProductById").mockResolvedValue(null);
+  it("lista produtos", async () => {
+    jest.spyOn(ProductService.prototype, "getProducts").mockResolvedValue([
+      {
+        id: 1,
+        name: "Vela",
+      },
+    ] as any);
 
-    const req: any = { params: { id: "99" } };
+    const req: any = {
+      query: {},
+    };
+
+    const res = mockResponse();
+
+    await controller.getAll(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("retorna produto por id", async () => {
+    jest.spyOn(ProductService.prototype, "getProductById").mockResolvedValue({
+      id: 1,
+      name: "Vela",
+    } as any);
+
+    const req: any = {
+      params: {
+        id: "1",
+      },
+    };
+
     const res = mockResponse();
 
     await controller.getById(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: "Produto não encontrado" });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

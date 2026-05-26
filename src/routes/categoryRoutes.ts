@@ -1,36 +1,28 @@
 import { Router } from "express";
-import { listCategories, getCategory, addCategory, updateCategory, deleteCategory } from "../controllers/categoryController.js";
+import { CategoryController } from "../controllers/categoryController.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { adminMiddleware } from "../middlewares/adminMiddleware.js";
 import { validate } from "../middlewares/validate.js";
-import { categorySchema } from "../validators/categoryValidator.js";
+import {
+  categorySchema,
+  updateCategorySchema,
+} from "../validators/categoryValidator.js";
+import { idParamSchema } from "../validators/commonValidator.js";
 
 const router = Router();
-
-/**
- * @swagger
- * tags:
- *   name: Categories
- *   description: Endpoints de categorias
- */
+const controller = new CategoryController();
 
 /**
  * @swagger
  * /categories:
  *   get:
- *     summary: Lista todas as categorias
+ *     summary: Lista categorias
  *     tags: [Categories]
- *   post:
- *     summary: Cria uma nova categoria
- *     tags: [Categories]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             name: "Velas"
- *             description: "Velas aromáticas e religiosas"
+ *     responses:
+ *       200:
+ *         description: Categorias listadas
  */
-router.get("/categories", listCategories);
-router.post("/categories", validate(categorySchema), addCategory);
+router.get("/", (req, res) => controller.list(req, res));
 
 /**
  * @swagger
@@ -38,15 +30,149 @@ router.post("/categories", validate(categorySchema), addCategory);
  *   get:
  *     summary: Busca categoria por ID
  *     tags: [Categories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID da categoria
+ *     responses:
+ *       200:
+ *         description: Categoria encontrada
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Categoria não encontrada
+ */
+router.get(
+  "/:id",
+  validate(idParamSchema, "params"),
+  (req, res) => controller.get(req, res)
+);
+
+/**
+ * @swagger
+ * /categories:
+ *   post:
+ *     summary: Cria categoria
+ *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Velas
+ *     responses:
+ *       201:
+ *         description: Categoria criada
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       409:
+ *         description: Categoria já existente
+ */
+router.post(
+  "/",
+  authMiddleware,
+  adminMiddleware,
+  validate(categorySchema),
+  (req, res) => controller.add(req, res)
+);
+
+/**
+ * @swagger
+ * /categories/{id}:
  *   put:
  *     summary: Atualiza categoria
  *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID da categoria
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Incensos
+ *     responses:
+ *       200:
+ *         description: Categoria atualizada
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Categoria não encontrada
+ */
+router.put(
+  "/:id",
+  authMiddleware,
+  adminMiddleware,
+  validate(idParamSchema, "params"),
+  validate(updateCategorySchema),
+  (req, res) => controller.update(req, res)
+);
+
+/**
+ * @swagger
+ * /categories/{id}:
  *   delete:
  *     summary: Remove categoria
  *     tags: [Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID da categoria
+ *     responses:
+ *       200:
+ *         description: Categoria removida
+ *       400:
+ *         description: ID inválido
+ *       401:
+ *         description: Usuário não autenticado
+ *       403:
+ *         description: Acesso negado
+ *       404:
+ *         description: Categoria não encontrada
  */
-router.get("/categories/:id", getCategory);
-router.put("/categories/:id", validate(categorySchema), updateCategory);
-router.delete("/categories/:id", deleteCategory);
+router.delete(
+  "/:id",
+  authMiddleware,
+  adminMiddleware,
+  validate(idParamSchema, "params"),
+  (req, res) => controller.delete(req, res)
+);
 
 export default router;

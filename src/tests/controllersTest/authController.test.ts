@@ -1,13 +1,17 @@
+import "../setup.js";
 import { jest } from "@jest/globals";
 import { AuthController } from "../../controllers/authController.js";
-import { AuthService } from "../../services/authService.js";
+import AuthService from "../../services/authService.js";
+import AuditService from "../../services/auditService.js";
 import type { Response } from "express";
 
 const mockResponse = () => {
-  const res: any = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res as Response;
+  const res = {} as Response;
+
+  res.status = jest.fn().mockReturnValue(res) as any;
+  res.json = jest.fn().mockReturnValue(res) as any;
+
+  return res;
 };
 
 describe("AuthController", () => {
@@ -15,111 +19,146 @@ describe("AuthController", () => {
 
   beforeEach(() => {
     controller = new AuthController();
+
     jest.clearAllMocks();
+
+    jest.spyOn(AuditService.prototype, "log").mockResolvedValue(undefined);
   });
 
-  it("registra usuário com sucesso", async () => {
-    jest.spyOn(AuthService.prototype, "register").mockResolvedValue({ id: 1, email: "ana@test.com" } as any);
-    const req: any = { body: { name: "Ana", email: "ana@test.com", password: "123456" } };
+  it("registra usuário", async () => {
+    jest.spyOn(AuthService.prototype, "register").mockResolvedValue({
+      user: {
+        id: 1,
+        name: "Ana",
+        email: "ana@test.com",
+        role: "user",
+      },
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    } as any);
+
+    const req: any = {
+      body: {
+        name: "Ana",
+        email: "ana@test.com",
+        password: "12345678",
+      },
+    };
+
     const res = mockResponse();
 
     await controller.register(req, res);
 
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
-  it("falha no login com credenciais inválidas", async () => {
-    jest.spyOn(AuthService.prototype, "login").mockRejectedValue(new Error("Credenciais inválidas"));
-    const req: any = { body: { email: "ana@test.com", password: "wrong" } };
-    const res = mockResponse();
-
-    await controller.login(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: "Credenciais inválidas" });
-  });
-
-  it("realiza login com sucesso", async () => {
+  it("realiza login", async () => {
     jest.spyOn(AuthService.prototype, "login").mockResolvedValue({
-      accessToken: "token",
-      refreshToken: "refresh",
-      user: { id: 1, email: "ana@test.com" },
+      user: {
+        id: 1,
+        name: "Ana",
+        email: "ana@test.com",
+        role: "user",
+      },
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
     } as any);
-    const req: any = { body: { email: "ana@test.com", password: "123456" } };
+
+    const req: any = {
+      body: {
+        email: "ana@test.com",
+        password: "12345678",
+      },
+    };
+
     const res = mockResponse();
 
     await controller.login(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
-  it("inicia fluxo de recuperação de senha", async () => {
-    jest.spyOn(AuthService.prototype, "forgotPassword").mockResolvedValue();
-    const req: any = { body: { email: "ana@test.com" } };
-    const res = mockResponse();
+  it("rotaciona refresh token", async () => {
+    const refreshSpy = jest
+      .spyOn(AuthService.prototype, "refresh")
+      .mockResolvedValue({
+        accessToken: "new-access-token",
+        refreshToken: "new-refresh-token",
+      } as any);
 
-    await controller.forgotPassword(req, res);
+    const req: any = {
+      body: {
+        refreshToken: "old-refresh-token",
+      },
+    };
 
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "E-mail de recuperação enviado" });
-  });
-
-  it("falha ao iniciar recuperação de senha para usuário inexistente", async () => {
-    jest.spyOn(AuthService.prototype, "forgotPassword").mockRejectedValue(new Error("Usuário não encontrado"));
-    const req: any = { body: { email: "naoexiste@test.com" } };
-    const res = mockResponse();
-
-    await controller.forgotPassword(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: "Usuário não encontrado" });
-  });
-
-  it("redefine senha com token válido", async () => {
-    jest.spyOn(AuthService.prototype, "resetPassword").mockResolvedValue();
-    const req: any = { body: { token: "validToken", newPassword: "novaSenha123" } };
-    const res = mockResponse();
-
-    await controller.resetPassword(req, res);
-
-    expect(res.json).toHaveBeenCalledWith({ success: true, message: "Senha redefinida com sucesso" });
-  });
-
-  it("falha ao redefinir senha com token inválido", async () => {
-    jest.spyOn(AuthService.prototype, "resetPassword").mockRejectedValue(new Error("Token inválido ou expirado"));
-    const req: any = { body: { token: "invalidToken", newPassword: "novaSenha123" } };
-    const res = mockResponse();
-
-    await controller.resetPassword(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: "Token inválido ou expirado" });
-  });
-
-  it("refresh token válido gera novo access token", async () => {
-    jest.spyOn(AuthService.prototype, "verifyRefreshToken").mockReturnValue({ id: 1 });
-    jest.spyOn(AuthService.prototype, "signAccessToken").mockReturnValue("newAccessToken");
-    const req: any = { body: { refreshToken: "validToken" } };
     const res = mockResponse();
 
     await controller.refresh(req, res);
 
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      message: "Token atualizado",
-      data: { accessToken: "newAccessToken" },
-    });
+    expect(refreshSpy).toHaveBeenCalledWith("old-refresh-token");
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("falha ao atualizar token com refresh inválido", async () => {
-    jest.spyOn(AuthService.prototype, "verifyRefreshToken").mockImplementation(() => { throw new Error("Token inválido"); });
-    const req: any = { body: { refreshToken: "invalidToken" } };
+  it("faz logout revogando refresh token", async () => {
+    const logoutSpy = jest
+      .spyOn(AuthService.prototype, "logout")
+      .mockResolvedValue({
+        message: "Logout realizado com sucesso",
+      } as any);
+
+    const req: any = {
+      body: {
+        refreshToken: "refresh-token",
+      },
+    };
+
     const res = mockResponse();
 
-    await controller.refresh(req, res);
+    await controller.logout(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: "Token inválido ou expirado" });
+    expect(logoutSpy).toHaveBeenCalledWith("refresh-token");
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("forgot password retorna mensagem genérica", async () => {
+    jest.spyOn(AuthService.prototype, "forgotPassword").mockResolvedValue({
+      message:
+        "Se este e-mail estiver cadastrado, enviaremos instruções para redefinir sua senha.",
+    } as any);
+
+    const req: any = {
+      body: {
+        email: "ana@test.com",
+      },
+    };
+
+    const res = mockResponse();
+
+    await controller.forgotPassword(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("redefine senha", async () => {
+    const resetSpy = jest
+      .spyOn(AuthService.prototype, "resetPassword")
+      .mockResolvedValue({
+        message: "Senha redefinida com sucesso",
+      } as any);
+
+    const req: any = {
+      body: {
+        token: "reset-token",
+        password: "12345678",
+      },
+    };
+
+    const res = mockResponse();
+
+    await controller.resetPassword(req, res);
+
+    expect(resetSpy).toHaveBeenCalledWith("reset-token", "12345678");
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

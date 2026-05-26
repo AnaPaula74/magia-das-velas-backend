@@ -1,125 +1,208 @@
 import { Router } from "express";
 import { AuthController } from "../controllers/authController.js";
 import { validate } from "../middlewares/validate.js";
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/authValidator.js";
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  refreshTokenSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "../validators/authValidator.js";
 
 const router = Router();
-const authController = new AuthController();
-
-/**
- * @swagger
- * tags:
- *   name: Auth
- *   description: Endpoints de autenticação
- */
+const controller = new AuthController();
 
 /**
  * @swagger
  * /auth/register:
  *   post:
  *     summary: Registra um novo usuário
- *     description: Cria um usuário com nome, email e senha.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             name: "Ana"
- *             email: "ana@test.com"
- *             password: "senhaSegura123"
+ *           schema:
+ *             type: object
+ *             required: [name, email, password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Ana Paula
+ *               email:
+ *                 type: string
+ *                 example: ana@email.com
+ *               password:
+ *                 type: string
+ *                 example: senha12345
  *     responses:
  *       201:
- *         description: Usuário criado com sucesso
+ *         description: Usuário registrado com sucesso
  *       400:
- *         description: Erro de validação
+ *         description: Dados inválidos
+ *       409:
+ *         description: E-mail já cadastrado
  */
-router.post("/register", validate(registerSchema), (req, res) => authController.register(req, res));
+router.post(
+  "/register",
+  validate(registerSchema),
+  (req, res) => controller.register(req, res)
+);
 
 /**
  * @swagger
  * /auth/login:
  *   post:
- *     summary: Realiza login
- *     description: Autentica usuário e retorna tokens JWT.
+ *     summary: Realiza login do usuário
  *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             email: "ana@test.com"
- *             password: "senhaSegura123"
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: ana@email.com
+ *               password:
+ *                 type: string
+ *                 example: senha12345
  *     responses:
  *       200:
- *         description: Login realizado
+ *         description: Login realizado com sucesso
+ *       400:
+ *         description: Dados inválidos
  *       401:
- *         description: Credenciais inválidas
+ *         description: E-mail ou senha inválidos
  */
-router.post("/login", validate(loginSchema), (req, res) => authController.login(req, res));
+router.post(
+  "/login",
+  validate(loginSchema),
+  (req, res) => controller.login(req, res)
+);
 
 /**
  * @swagger
  * /auth/refresh:
  *   post:
- *     summary: Atualiza token de acesso
- *     description: Gera novo access token a partir de um refresh token válido.
+ *     summary: Gera um novo access token usando refresh token
  *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             refreshToken: "jwt_refresh_token_aqui"
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 example: refresh_token_aqui
  *     responses:
  *       200:
- *         description: Token atualizado
+ *         description: Token atualizado com sucesso
+ *       400:
+ *         description: Dados inválidos
  *       401:
- *         description: Token inválido ou expirado
+ *         description: Refresh token inválido ou expirado
  */
-router.post("/refresh", (req, res) => authController.refresh(req, res));
+router.post(
+  "/refresh",
+  validate(refreshTokenSchema),
+  (req, res) => controller.refresh(req, res)
+);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Revoga o refresh token do usuário
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 example: refresh_token_aqui
+ *     responses:
+ *       200:
+ *         description: Logout realizado com sucesso
+ *       400:
+ *         description: Dados inválidos
+ */
+router.post(
+  "/logout",
+  validate(refreshTokenSchema),
+  (req, res) => controller.logout(req, res)
+);
 
 /**
  * @swagger
  * /auth/forgot-password:
  *   post:
- *     summary: Inicia fluxo de recuperação de senha
- *     description: Envia e-mail com link para redefinição de senha.
+ *     summary: Solicita recuperação de senha
+ *     description: Retorna sempre uma mensagem genérica para evitar enumeração de e-mails.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             email: "ana@test.com"
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: ana@email.com
  *     responses:
  *       200:
- *         description: Email enviado
- *       404:
- *         description: Usuário não encontrado
+ *         description: Instruções enviadas caso o e-mail exista
+ *       400:
+ *         description: Dados inválidos
  */
-router.post("/forgot-password", validate(forgotPasswordSchema), (req, res) => authController.forgotPassword(req, res));
+router.post(
+  "/forgot-password",
+  validate(forgotPasswordSchema),
+  (req, res) => controller.forgotPassword(req, res)
+);
 
 /**
  * @swagger
  * /auth/reset-password:
  *   post:
- *     summary: Redefine senha do usuário
- *     description: Atualiza senha a partir de token válido.
+ *     summary: Redefine a senha usando token de recuperação
  *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             token: "token_de_recuperacao"
- *             newPassword: "novaSenha123"
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: token_recebido_no_email
+ *               password:
+ *                 type: string
+ *                 example: novaSenha123
  *     responses:
  *       200:
- *         description: Senha redefinida
+ *         description: Senha redefinida com sucesso
  *       400:
  *         description: Token inválido ou expirado
  */
-router.post("/reset-password", validate(resetPasswordSchema), (req, res) => authController.resetPassword(req, res));
+router.post(
+  "/reset-password",
+  validate(resetPasswordSchema),
+  (req, res) => controller.resetPassword(req, res)
+);
 
 export default router;

@@ -1,23 +1,46 @@
 module.exports = {
-  // preset para TypeScript com suporte a ES Modules
   preset: "ts-jest/presets/default-esm",
 
-  // ambiente de execução
   testEnvironment: "node",
 
-  // setup executado após inicialização
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  resolver: "<rootDir>/jest.resolver.cjs",
 
-  // transformação de arquivos TS
+  setupFilesAfterEnv: [
+    "<rootDir>/jest.setup.ts",
+    "<rootDir>/src/tests/setup.ts",
+  ],
+
   transform: {
-    "^.+\\.(ts|tsx)$": ["ts-jest", { useESM: true }],
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        useESM: true,
+        tsconfig: {
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+        },
+      },
+    ],
   },
 
-  // trata arquivos .ts como ES Modules
   extensionsToTreatAsEsm: [".ts"],
 
-  // mapeamento para evitar problemas com imports terminados em .js
   moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^src/(.*)\\.js$": "<rootDir>/src/$1.ts",
   },
+
+  testMatch: ["<rootDir>/src/tests/**/*.test.ts"],
+
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/dist/",
+  ],
+
+  modulePathIgnorePatterns: [
+    "<rootDir>/dist/",
+  ],
+
+  clearMocks: false,
+
+  detectOpenHandles: true,
 };

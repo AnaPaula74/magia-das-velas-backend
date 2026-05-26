@@ -1,56 +1,197 @@
 import type { Request, Response } from "express";
+
 import CategoryService from "../services/categoryService.js";
+import AuditService from "../services/auditService.js";
+import { success, failure } from "../utils/httpResponses.js";
+import { getErrorMessage, getErrorStatus } from "../utils/errorHandler.js";
+import { logger } from "../utils/logger.js";
 
-const service = new CategoryService();
+export class CategoryController {
+  constructor(
+    private categoryService = new CategoryService(),
+    private auditService = new AuditService()
+  ) {}
 
-export const listCategories = async (req: Request, res: Response) => {
-  try {
-    const categories = await service.listCategories();
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao listar categorias", error });
-  }
-};
+  async list(_req: Request, res: Response) {
+    try {
+      const categories = await this.categoryService.listCategories();
 
-export const getCategory = async (req: Request, res: Response) => {
-  try {
-    const category = await service.getCategory(Number(req.params.id));
-    if (!category) return res.status(404).json({ message: "Categoria não encontrada" });
-    res.json(category);
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao buscar categoria", error });
-  }
-};
+      logger.info(`Categorias listadas: ${categories.length} categorias`);
 
-export const addCategory = async (req: Request, res: Response) => {
-  try {
-    const { name, description } = req.body;
-    await service.createCategory(name, description);
-    res.status(201).json({ message: "Categoria criada com sucesso" });
-  } catch (error: any) {
-    if (error.message === "Categoria já existe") {
-      res.status(400).json({ message: error.message });
-    } else {
-      res.status(500).json({ message: "Erro ao criar categoria", error });
+      return success(res, 200, "Categorias listadas com sucesso", categories);
+    } catch (error: unknown) {
+      logger.error("Erro ao listar categorias", { error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao listar categorias")
+      );
     }
   }
-};
 
-export const updateCategory = async (req: Request, res: Response) => {
-  try {
-    const { name, description } = req.body;
-    await service.updateCategory(Number(req.params.id), name, description);
-    res.json({ message: "Categoria atualizada com sucesso" });
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao atualizar categoria", error });
-  }
-};
+  async get(req: Request, res: Response) {
+    try {
+      const categoryId = Number(req.params.id);
 
-export const deleteCategory = async (req: Request, res: Response) => {
-  try {
-    await service.deleteCategory(Number(req.params.id));
-    res.json({ message: "Categoria removida com sucesso" });
-  } catch (error) {
-    res.status(500).json({ message: "Erro ao remover categoria", error });
+      if (isNaN(categoryId) || categoryId <= 0) {
+        return failure(res, 400, "ID da categoria inválido");
+      }
+
+      const category = await this.categoryService.getCategory(categoryId);
+
+      logger.info(`Categoria ${categoryId} consultada`);
+
+      return success(res, 200, "Categoria encontrada com sucesso", category);
+    } catch (error: unknown) {
+      logger.error("Erro ao consultar categoria", { categoryId: req.params.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao consultar categoria")
+      );
+    }
   }
-};
+
+  async add(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const name = req.body.name?.trim();
+      const description = req.body.description?.trim();
+
+      if (!name || name.length < 3) {
+        return failure(res, 400, "Nome da categoria deve ter no mínimo 3 caracteres");
+      }
+
+      if (description && description.length > 500) {
+        return failure(res, 400, "Descrição não pode exceder 500 caracteres");
+      }
+
+      const result = await this.categoryService.createCategory({
+        name,
+        description,
+      });
+
+      await this.auditService.log(
+        req.user.id,
+        "CATEGORY_CREATE",
+        `Categoria criada: ${name}`
+      );
+
+      logger.info(`Categoria "${name}" criada por usuário ${req.user.id}`);
+
+      return success(res, 201, "Categoria criada com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao criar categoria", { userId: req.user?.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao criar categoria")
+      );
+    }
+  }
+
+  async update(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const categoryId = Number(req.params.id);
+
+      if (isNaN(categoryId) || categoryId <= 0) {
+        return failure(res, 400, "ID da categoria inválido");
+      }
+
+      const name = req.body.name?.trim();
+      const description = req.body.description?.trim();
+
+      if (name && name.length < 3) {
+        return failure(res, 400, "Nome da categoria deve ter no mínimo 3 caracteres");
+      }
+
+      if (description && description.length > 500) {
+        return failure(res, 400, "Descrição não pode exceder 500 caracteres");
+      }
+
+      const result = await this.categoryService.updateCategory(categoryId, {
+        name,
+        description,
+      });
+
+      await this.auditService.log(
+        req.user.id,
+        "CATEGORY_UPDATE",
+        `Categoria ${categoryId} atualizada: ${name || "sem alteração de nome"}`
+      );
+
+      logger.info(`Categoria ${categoryId} atualizada por usuário ${req.user.id}`);
+
+      return success(res, 200, "Categoria atualizada com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao atualizar categoria", {
+        categoryId: req.params.id,
+        userId: req.user?.id,
+        error,
+      });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao atualizar categoria")
+      );
+    }
+  }
+
+  async delete(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const categoryId = Number(req.params.id);
+
+      if (isNaN(categoryId) || categoryId <= 0) {
+        return failure(res, 400, "ID da categoria inválido");
+      }
+
+      const result = await this.categoryService.deleteCategory(categoryId);
+
+      await this.auditService.log(
+        req.user.id,
+        "CATEGORY_DELETE",
+        `Categoria ${categoryId} removida`
+      );
+
+      logger.info(`Categoria ${categoryId} removida por usuário ${req.user.id}`);
+
+      return success(res, 200, "Categoria removida com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao deletar categoria", {
+        categoryId: req.params.id,
+        userId: req.user?.id,
+        error,
+      });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao deletar categoria")
+      );
+    }
+  }
+}
+
+const controller = new CategoryController();
+export const listCategories = (req: Request, res: Response) =>
+  controller.list(req, res);
+export const getCategory = (req: Request, res: Response) =>
+  controller.get(req, res);
+export const addCategory = (req: Request, res: Response) =>
+  controller.add(req, res);
+export const updateCategory = (req: Request, res: Response) =>
+  controller.update(req, res);
+export const deleteCategory = (req: Request, res: Response) =>
+  controller.delete(req, res);
+
+export default controller;
