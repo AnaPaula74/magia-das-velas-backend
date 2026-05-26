@@ -1,106 +1,249 @@
-import { connection } from "../config/database.js";
+import crypto from "crypto";
 import argon2 from "argon2";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { sendEmail } from "../utils/mailer.js";
+
+import UserRepository from "../repositories/userRepository.js";
+import PasswordResetRepository from "../repositories/passwordResetRepository.js";
+import RefreshTokenRepository from "../repositories/refreshTokenRepository.js";
+import { NotificationService } from "./notificationService.js";
+
+import {
+  ConflictError,
+  UnauthorizedError,
+  ValidationError,
+} from "../errors/customErrors.js";
+
+import {
+  getRefreshTokenExpiresAt,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../utils/jwtUtils.js";
+
+import { hashToken } from "../utils/tokenHash.js";
 import { logger } from "../utils/logger.js";
+import { env } from "../config/env.js";
 
-export class AuthService {
-  async register(name: string, email: string, password: string) {
-    const hashedPassword = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 2 ** 16,
-      timeCost: 4,
-      parallelism: 2,
-    });
+import type { RegisterDTO } from "../dtos/auth/register.dto.js";
+import type { LoginDTO } from "../dtos/auth/login.dto.js";
 
-    const [result] = await connection.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-      [name, email, hashedPassword]
-    );
+export default class AuthService {
+  constructor(
+    private userRepository = new UserRepository(),
+    private passwordResetRepository = new PasswordResetRepository(),
+    private refreshTokenRepository = new RefreshTokenRepository(),
+    private notificationService = new NotificationService()
+  ) {}
 
-    logger.info(`Usuário registrado: ${email}`);
-    return result;
-  }
+  private async createSession(user: {
+    id: number;
+    email: string;
+    role: string;
+  }) {
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
 
-  async login(email: string, password: string) {
-    const [rows]: any = await connection.query("SELECT * FROM users WHERE email = ?", [email]);
-    const user = rows[0];
-    if (!user) throw new Error("Usuário não encontrado");
-
-    let passwordMatch = false;
-    try {
-      passwordMatch = await argon2.verify(user.password, password);
-    } catch {
-      passwordMatch = await bcrypt.compare(password, user.password);
-    }
-
-    if (!passwordMatch) throw new Error("Senha inválida");
-
-    const secret = process.env.JWT_SECRET!;
-    const refreshSecret = process.env.JWT_REFRESH_SECRET!;
-
-    const accessToken = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      secret,
-      { expiresIn: "15m", issuer: "magia-das-velas-api", audience: "users" }
-    );
-
-    const refreshToken = jwt.sign(
-      { id: user.id },
-      refreshSecret,
-      { expiresIn: "7d", issuer: "magia-das-velas-api", audience: "users" }
+    await this.refreshTokenRepository.create(
+      user.id,
+      hashToken(refreshToken),
+      getRefreshTokenExpiresAt()
     );
 
     return {
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
       accessToken,
       refreshToken,
     };
   }
 
-  async forgotPassword(email: string): Promise<void> {
-    const [rows]: any = await connection.query("SELECT * FROM users WHERE email = ?", [email]);
-    const user = rows[0];
-    if (!user) throw new Error("Usuário não encontrado");
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const tokenHash = await argon2.hash(token, { type: argon2.argon2id });
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 15);
-
-    await connection.query(
-      "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-      [user.id, tokenHash, expiresAt]
+  async register(data: RegisterDTO) {
+    const existingUser = await this.userRepository.findByEmailOptional(
+      data.email
     );
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    await sendEmail(
-      email,
-      "Recuperação de senha",
-      `Clique aqui para redefinir sua senha: ${resetLink}`,
-      `<p>Olá ${user.name},</p>
-       <p>Você solicitou a redefinição de senha. Clique no link abaixo para continuar:</p>
-       <p><a href="${resetLink}">Redefinir senha</a></p>
-       <p>Este link expira em 15 minutos.</p>`
+    if (existingUser) {
+      throw new ConflictError("E-mail já cadastrado");
+    }
+
+    const passwordHash = await argon2.hash(data.password, {
+      type: argon2.argon2id,
+    });
+
+    const createdUser = await this.userRepository.create(
+      data.name,
+      data.email,
+      passwordHash
     );
+
+    const user = {
+      id: createdUser.id,
+      name: createdUser.name,
+      email: createdUser.email,
+      role: createdUser.role,
+    };
+
+    const tokens = await this.createSession({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    logger.info(`Usuário registrado: ${user.email}`);
+
+    return {
+      user,
+      ...tokens,
+    };
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    const [rows]: any = await connection.query("SELECT * FROM password_resets");
-    const reset = rows.find((r: any) => argon2.verify(r.token, token));
-    if (!reset || new Date(reset.expires_at) < new Date()) throw new Error("Token inválido ou expirado");
+  async login(data: LoginDTO) {
+    const user = await this.userRepository.findByEmail(data.email);
 
-    const hashed = await argon2.hash(newPassword, { type: argon2.argon2id });
-    await connection.query("UPDATE users SET password = ? WHERE id = ?", [hashed, reset.user_id]);
-    await connection.query("DELETE FROM password_resets WHERE user_id = ?", [reset.user_id]);
+    if (!user) {
+      throw new UnauthorizedError("E-mail ou senha inválidos");
+    }
+
+    let validPassword = false;
+
+    if (String(user.password).startsWith("$argon2")) {
+      validPassword = await argon2.verify(user.password, data.password);
+    } else {
+      validPassword = await bcrypt.compare(data.password, user.password);
+    }
+
+    if (!validPassword) {
+      throw new UnauthorizedError("E-mail ou senha inválidos");
+    }
+
+    const tokens = await this.createSession({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    logger.info(`Login realizado: ${user.email}`);
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      ...tokens,
+    };
   }
 
-  verifyRefreshToken(token: string) {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET!);
+  async refresh(refreshToken: string) {
+    const decoded = verifyRefreshToken(refreshToken);
+    const tokenHash = hashToken(refreshToken);
+
+    const storedToken = await this.refreshTokenRepository.findValidByHash(
+      tokenHash
+    );
+
+    if (!storedToken) {
+      throw new UnauthorizedError("Refresh token inválido ou revogado");
+    }
+
+    const user = await this.userRepository.getById(decoded.id);
+
+    if (!user) {
+      throw new UnauthorizedError("Usuário não encontrado");
+    }
+
+    await this.refreshTokenRepository.revokeByHash(tokenHash);
+
+    const tokens = await this.createSession({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    logger.info(`Refresh token rotacionado para usuário ${user.id}`);
+
+    return tokens;
   }
 
-  signAccessToken(payload: { id: number }) {
-    return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "15m" });
+  async logout(refreshToken: string) {
+    const tokenHash = hashToken(refreshToken);
+
+    await this.refreshTokenRepository.revokeByHash(tokenHash);
+
+    return {
+      message: "Logout realizado com sucesso",
+    };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.userRepository.findByEmailOptional(email);
+
+    const genericMessage =
+      "Se este e-mail estiver cadastrado, enviaremos instruções para redefinir sua senha.";
+
+    if (!user) {
+      logger.info("Recuperação de senha solicitada para e-mail não cadastrado");
+
+      return {
+        message: genericMessage,
+      };
+    }
+
+    await this.passwordResetRepository.deleteByUserId(user.id);
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashToken(rawToken);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    await this.passwordResetRepository.create(user.id, tokenHash, expiresAt);
+
+    const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+    const html = `
+      <p>Olá, ${user.name}.</p>
+      <p>Recebemos uma solicitação para redefinir sua senha.</p>
+      <p>Clique no link abaixo para criar uma nova senha:</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Este link expira em 30 minutos.</p>
+      <p>Se você não solicitou esta alteração, ignore este e-mail.</p>
+    `;
+
+    await this.notificationService.sendEmail(
+      user.email,
+      "Redefinição de senha - Magia das Velas",
+      `Acesse o link para redefinir sua senha: ${resetUrl}`,
+      html
+    );
+
+    logger.info(`Token de reset enviado para usuário ${user.id}`);
+
+    return {
+      message: genericMessage,
+    };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const tokenHash = hashToken(token);
+
+    const reset = await this.passwordResetRepository.findValidByHash(tokenHash);
+
+    if (!reset) {
+      throw new ValidationError("Token inválido ou expirado");
+    }
+
+    const passwordHash = await argon2.hash(password, {
+      type: argon2.argon2id,
+    });
+
+    await this.userRepository.updatePassword(reset.user_id, passwordHash);
+    await this.passwordResetRepository.markAsUsed(reset.id);
+    await this.refreshTokenRepository.revokeAllByUserId(reset.user_id);
+
+    logger.info(`Senha redefinida para usuário ${reset.user_id}`);
+
+    return {
+      message: "Senha redefinida com sucesso",
+    };
   }
 }

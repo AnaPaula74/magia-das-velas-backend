@@ -1,32 +1,110 @@
-import { connection } from "../config/database.js";
+// src/services/wishlistService.ts
+
 import { logger } from "../utils/logger.js";
-import { ValidationError, NotFoundError } from "../errors/customErrors.js";
+
+import {
+  ValidationError,
+  NotFoundError,
+  ConflictError,
+} from "../errors/customErrors.js";
+
+import WishlistRepository from "../repositories/wishlistRepository.js";
+
+import type { AddWishlistDTO } from "../dtos/wishlist/addWishlist.dto.js";
+import type { RemoveWishlistItemDTO } from "../dtos/wishlist/removeWishlistItem.dto.js";
 
 export class WishlistService {
-  async add(userId: number, productId: number) {
-    if (!productId) throw new ValidationError("Produto inválido");
-    const [result]: any = await connection.query("INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)", [userId, productId]);
-    logger.info(`Produto ${productId} adicionado à wishlist do usuário ${userId}`);
+  constructor(
+    private wishlistRepository =
+      new WishlistRepository()
+  ) {}
+
+  async add(dto: AddWishlistDTO): Promise<unknown>;
+  async add(userId: number, productId: number): Promise<unknown>;
+  async add(input: AddWishlistDTO | number, productId?: number) {
+    const dto =
+      typeof input === "number"
+        ? { userId: input, productId: productId ?? 0 }
+        : input;
+
+    if (!dto.productId) {
+      throw new ValidationError(
+        "Produto inválido"
+      );
+    }
+
+    const product = await this.wishlistRepository.findProductById(dto.productId);
+
+    if (!product) {
+      throw new NotFoundError("Produto não encontrado");
+    }
+
+    const existing =
+      await this.wishlistRepository.findItem(
+        dto.userId,
+        dto.productId
+      );
+
+    if (existing) {
+      throw new ConflictError(
+        "Produto já está na wishlist"
+      );
+    }
+
+    const result =
+      await this.wishlistRepository.add(
+        dto.userId,
+        dto.productId
+      );
+
+    logger.info(
+      `Wishlist atualizada`
+    );
+
     return result;
   }
 
-  async remove(userId: number, productId: number) {
-    const [result]: any = await connection.query("DELETE FROM wishlist WHERE user_id = ? AND product_id = ?", [userId, productId]);
-    if (result.affectedRows === 0) throw new NotFoundError("Produto não encontrado na wishlist");
-    logger.info(`Produto ${productId} removido da wishlist do usuário ${userId}`);
+  async remove(dto: RemoveWishlistItemDTO): Promise<unknown>;
+  async remove(userId: number, productId: number): Promise<unknown>;
+  async remove(
+    input: RemoveWishlistItemDTO | number,
+    productId?: number
+  ) {
+    const dto =
+      typeof input === "number"
+        ? { userId: input, productId: productId ?? 0 }
+        : input;
+
+    const result =
+      await this.wishlistRepository.remove(
+        dto.userId,
+        dto.productId
+      );
+
+    if (result.affectedRows === 0) {
+      throw new NotFoundError(
+        "Produto não encontrado"
+      );
+    }
+
     return result;
   }
 
   async list(userId: number) {
-    const [rows]: any = await connection.query(
-      `SELECT products.* FROM wishlist
-       JOIN products ON products.id = wishlist.product_id
-       WHERE wishlist.user_id = ?
-       ORDER BY wishlist.created_at DESC`,
-      [userId]
-    );
-    if (!rows.length) throw new NotFoundError("Nenhum favorito encontrado");
-    logger.info(`Wishlist consultada: usuário ${userId}`);
-    return rows;
+    const rows =
+      await this.wishlistRepository.list(
+        userId
+      );
+
+    return {
+      items: rows,
+      total: rows.length,
+    };
+  }
+
+  async exists(userId: number, productId: number): Promise<boolean> {
+    const item = await this.wishlistRepository.findItem(userId, productId);
+
+    return Boolean(item);
   }
 }

@@ -1,90 +1,211 @@
 import type { Request, Response } from "express";
-import { ProductService } from "../services/productService.js";
-import { logger } from "../utils/logger.js";
-import { ValidationError, NotFoundError } from "../errors/customErrors.js";
 
-const productService = new ProductService();
+import { ProductService } from "../services/productService.js";
+import AuditService from "../services/auditService.js";
+import type { CreateProductDTO } from "../dtos/product/createProduct.dto.js";
+import type { UpdateProductDTO } from "../dtos/product/updateProduct.dto.js";
+import type { ProductQueryDTO } from "../dtos/product/productQuery.dto.js";
+import { success, failure } from "../utils/httpResponses.js";
+import { getErrorMessage, getErrorStatus } from "../utils/errorHandler.js";
+import { logger } from "../utils/logger.js";
 
 export class ProductController {
+  constructor(
+    private productService = new ProductService(),
+    private auditService = new AuditService()
+  ) {}
+
   async create(req: Request, res: Response) {
     try {
-      const { name, description, price, stock } = req.body;
-      // valida campos obrigatórios
-      if (!name || !description || !price || !stock) {
-        throw new ValidationError("Campos obrigatórios não preenchidos");
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
       }
 
-      const image_url = req.file ? `/uploads/${req.file.filename}` : "";
-      const result = await productService.createProduct(name, description, Number(price), image_url, Number(stock));
+      const dto: CreateProductDTO = {
+        name: req.body.name?.trim(),
+        description: req.body.description?.trim(),
+        price: Number(req.body.price),
+        image_url: req.file ? `/uploads/${req.file.filename}` : undefined,
+        stock: Number(req.body.stock),
+      };
 
-      logger.info(`Produto criado: ${name} por usuário ${req.user?.email}`);
-      return res.status(201).json({ success: true, message: "Produto criado", data: result });
-    } catch (error: any) {
-      logger.error("Erro ao criar produto", { error });
-      return res.status(error.statusCode || 500).json({ success: false, error: error.message });
+      if (!dto.name || dto.name.length < 3) {
+        return failure(res, 400, "Nome do produto deve ter no mínimo 3 caracteres");
+      }
+
+      if (dto.price <= 0) {
+        return failure(res, 400, "Preço deve ser maior que zero");
+      }
+
+      if (dto.stock < 0) {
+        return failure(res, 400, "Estoque não pode ser negativo");
+      }
+
+      const result = await this.productService.createProduct(dto);
+
+      await this.auditService.log({
+        userId: req.user.id,
+        action: "PRODUCT_CREATE",
+        details: `Produto criado: ${dto.name} (ID: ${result.id})`,
+      });
+
+      logger.info(`Produto criado: ${dto.name} por usuário ${req.user.id}`);
+
+      return success(res, 201, "Produto criado com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao criar produto", { userId: req.user?.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao criar produto")
+      );
     }
   }
 
   async getAll(req: Request, res: Response) {
     try {
-      const { page = "1", limit = "10", search = "", order = "DESC" } = req.query;
-      const pageNumber = Number(page);
-      const limitNumber = Number(limit);
-      const offset = (pageNumber - 1) * limitNumber;
+      const page = Math.max(1, Number(req.query.page ?? 1));
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 10)));
 
-      // paginação e busca aplicadas no service
-      const products = await productService.getProducts(limitNumber, offset, search as string, order as string);
-      logger.info(`Listagem de produtos - página ${pageNumber}`);
-      return res.json({ success: true, page: pageNumber, limit: limitNumber, data: products });
-    } catch (error: any) {
-      logger.error("Erro ao buscar produtos", { error });
-      return res.status(error.statusCode || 500).json({ success: false, error: error.message });
+      const dto: ProductQueryDTO = {
+        page,
+        limit,
+        search: String(req.query.search ?? "").trim(),
+        order: req.query.order === "ASC" ? "ASC" : "DESC",
+      };
+
+      const products = await this.productService.getProducts(dto);
+
+      logger.info(`Produtos listados com filtros: page=${page}, limit=${limit}`);
+
+      return success(res, 200, "Produtos listados com sucesso", products);
+    } catch (error: unknown) {
+      logger.error("Erro ao listar produtos", { error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao listar produtos")
+      );
     }
   }
 
   async getById(req: Request, res: Response) {
     try {
-      const id = Number(req.params.id);
-      const product = await productService.getProductById(id);
-      if (!product) throw new NotFoundError("Produto não encontrado");
+      const productId = Number(req.params.id);
 
-      logger.info(`Produto consultado: ID ${id}`);
-      return res.json({ success: true, data: product });
-    } catch (error: any) {
-      logger.error("Erro ao buscar produto", { error });
-      return res.status(error.statusCode || 500).json({ success: false, error: error.message });
+      if (isNaN(productId) || productId <= 0) {
+        return failure(res, 400, "ID do produto inválido");
+      }
+
+      const product = await this.productService.getProductById(productId);
+
+      logger.info(`Produto ${productId} consultado`);
+
+      return success(res, 200, "Produto encontrado", product);
+    } catch (error: unknown) {
+      logger.error("Erro ao consultar produto", { productId: req.params.id, error });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao consultar produto")
+      );
     }
   }
 
   async update(req: Request, res: Response) {
     try {
-      const id = Number(req.params.id);
-      const { name, description, price, stock } = req.body;
-      // valida campos obrigatórios
-      if (!name || !description || !price || !stock) {
-        throw new ValidationError("Campos obrigatórios não preenchidos");
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
       }
 
-      const image_url = req.file ? `/uploads/${req.file.filename}` : "";
-      const result = await productService.updateProduct(id, name, description, Number(price), image_url, Number(stock));
+      const productId = Number(req.params.id);
 
-      logger.info(`Produto atualizado: ID ${id} por usuário ${req.user?.email}`);
-      return res.json({ success: true, message: "Produto atualizado", data: result });
-    } catch (error: any) {
-      logger.error("Erro ao atualizar produto", { error });
-      return res.status(error.statusCode || 500).json({ success: false, error: error.message });
+      if (isNaN(productId) || productId <= 0) {
+        return failure(res, 400, "ID do produto inválido");
+      }
+
+      const dto: UpdateProductDTO = {
+        name: req.body.name?.trim(),
+        description: req.body.description?.trim(),
+        price: req.body.price ? Number(req.body.price) : undefined,
+        image_url: req.file ? `/uploads/${req.file.filename}` : undefined,
+        stock: req.body.stock ? Number(req.body.stock) : undefined,
+      };
+
+      if (dto.name && dto.name.length < 3) {
+        return failure(res, 400, "Nome do produto deve ter no mínimo 3 caracteres");
+      }
+
+      if (dto.price !== undefined && dto.price <= 0) {
+        return failure(res, 400, "Preço deve ser maior que zero");
+      }
+
+      if (dto.stock !== undefined && dto.stock < 0) {
+        return failure(res, 400, "Estoque não pode ser negativo");
+      }
+
+      const result = await this.productService.updateProduct(productId, dto);
+
+      await this.auditService.log({
+        userId: req.user.id,
+        action: "PRODUCT_UPDATE",
+        details: `Produto ${productId} atualizado`,
+      });
+
+      logger.info(`Produto ${productId} atualizado por usuário ${req.user.id}`);
+
+      return success(res, 200, "Produto atualizado com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao atualizar produto", {
+        productId: req.params.id,
+        userId: req.user?.id,
+        error,
+      });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao atualizar produto")
+      );
     }
   }
 
   async delete(req: Request, res: Response) {
     try {
-      const id = Number(req.params.id);
-      const result = await productService.deleteProduct(id);
-      logger.info(`Produto deletado: ID ${id} por usuário ${req.user?.email}`);
-      return res.json({ success: true, message: "Produto deletado", data: result });
-    } catch (error: any) {
-      logger.error("Erro ao deletar produto", { error });
-      return res.status(error.statusCode || 500).json({ success: false, error: error.message });
+      if (!req.user) {
+        return failure(res, 401, "Usuário não autenticado");
+      }
+
+      const productId = Number(req.params.id);
+
+      if (isNaN(productId) || productId <= 0) {
+        return failure(res, 400, "ID do produto inválido");
+      }
+
+      const result = await this.productService.deleteProduct(productId);
+
+      await this.auditService.log({
+        userId: req.user.id,
+        action: "PRODUCT_DELETE",
+        details: `Produto ${productId} removido`,
+      });
+
+      logger.info(`Produto ${productId} removido por usuário ${req.user.id}`);
+
+      return success(res, 200, "Produto deletado com sucesso", result);
+    } catch (error: unknown) {
+      logger.error("Erro ao deletar produto", {
+        productId: req.params.id,
+        userId: req.user?.id,
+        error,
+      });
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao deletar produto")
+      );
     }
   }
 }
+
+const controller = new ProductController();
+export default controller;

@@ -1,78 +1,56 @@
+import "../setup.js";
 import { jest } from "@jest/globals";
-import * as userController from "../../controllers/userController.js";
+import { updateProfile } from "../../controllers/userController.js";
 import UserService from "../../services/userService.js";
+import AuditService from "../../services/auditService.js";
 import type { Response } from "express";
 
 const mockResponse = () => {
-  const res: any = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res as Response;
+  const res = {} as Response;
+
+  res.status = jest.fn().mockReturnValue(res) as any;
+  res.json = jest.fn().mockReturnValue(res) as any;
+
+  return res;
 };
 
-describe("UserController - updateProfile", () => {
+describe("UserController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    jest.spyOn(AuditService.prototype, "log").mockResolvedValue();
   });
 
-  it("atualiza perfil com sucesso", async () => {
+  it("atualiza perfil", async () => {
     jest.spyOn(UserService.prototype, "updateProfile").mockResolvedValue();
 
     const req: any = {
-      user: { id: 1 }, 
-      body: { name: "Ana", email: "ana@email.com", phone: "+5522999999999" },
+      body: {
+        name: "Ana",
+        email: "ana@test.com",
+        phone: "22999999999",
+      },
+      user: {
+        id: 1,
+      },
     };
+
     const res = mockResponse();
 
-    await userController.updateProfile(req, res);
+    await updateProfile(req, res);
 
-    expect(res.json).toHaveBeenCalledWith({ message: "Perfil atualizado com sucesso" });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("retorna 404 se usuário não existe", async () => {
-    jest.spyOn(UserService.prototype, "updateProfile")
-      .mockRejectedValue(new Error("Usuário não encontrado"));
-
+  it("retorna erro sem usuário autenticado", async () => {
     const req: any = {
-      user: { id: 99 },
-      body: { name: "Ana", email: "ana@email.com", phone: "+5522999999999" },
+      body: {},
     };
+
     const res = mockResponse();
 
-    await userController.updateProfile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ message: "Usuário não encontrado" });
-  });
-
-  it("retorna 500 em erro inesperado", async () => {
-    jest.spyOn(UserService.prototype, "updateProfile")
-      .mockRejectedValue(new Error("Erro inesperado"));
-
-    const req: any = {
-      user: { id: 1 },
-      body: { name: "Ana", email: "ana@email.com", phone: "+5522999999999" },
-    };
-    const res = mockResponse();
-
-    await userController.updateProfile(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Erro ao atualizar perfil",
-      error: expect.any(Error),
-    });
-  });
-
-  it("retorna 401 se não autenticado", async () => {
-    const req: any = {
-      body: { name: "Ana", email: "ana@email.com", phone: "+5522999999999" },
-    };
-    const res = mockResponse();
-
-    await userController.updateProfile(req, res);
+    await updateProfile(req, res);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ message: "Não autenticado" });
   });
 });

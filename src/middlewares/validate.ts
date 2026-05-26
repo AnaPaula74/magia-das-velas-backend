@@ -2,12 +2,13 @@ import type { Request, Response, NextFunction } from "express";
 import type { ZodSchema } from "zod";
 import { ZodError } from "zod";
 import { logger } from "../utils/logger.js";
+import { failure } from "../utils/httpResponses.js";
 
-// middleware genérico para validação com Zod
 export function validate(schema: ZodSchema, source: "body" | "params" | "query" = "body") {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      schema.parse(req[source]);
+      const parsed = schema.parse(req[source]);
+      (req as unknown as Record<typeof source, unknown>)[source] = parsed;
       logger.info(`Validação de ${source} bem-sucedida`);
       return next();
     } catch (error) {
@@ -23,7 +24,7 @@ export function validate(schema: ZodSchema, source: "body" | "params" | "query" 
         });
       }
       logger.error("Erro interno de validação", { error });
-      return res.status(500).json({ success: false, error: "Erro interno de validação" });
+      return failure(res, 500, "Erro interno de validação");
     }
   };
 }

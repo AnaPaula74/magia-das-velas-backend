@@ -1,77 +1,138 @@
 import { Router } from "express";
 import { PaymentController } from "../controllers/paymentController.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { validate } from "../middlewares/validate.js";
+import {
+  pixPaymentSchema,
+  mercadoPagoSchema,
+  paymentReferenceParamSchema,
+} from "../validators/paymentValidator.js";
 
 const router = Router();
 const controller = new PaymentController();
 
 /**
  * @swagger
- * tags:
- *   name: Payments
- *   description: Endpoints de pagamentos
- */
-
-/**
- * @swagger
  * /payments/pix:
  *   post:
- *     summary: Criar pagamento Pix
+ *     summary: Cria pagamento Pix pelo Mercado Pago
+ *     description: Cria um pagamento Pix usando o total real do pedido salvo no backend.
  *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             amount: 59.90
- *             description: "Compra de velas"
- *             email: "cliente@email.com"
+ *           schema:
+ *             type: object
+ *             required: [orderId]
+ *             properties:
+ *               orderId:
+ *                 type: integer
+ *                 example: 1
  *     responses:
  *       201:
- *         description: Pix criado com sucesso
+ *         description: Pagamento Pix criado
  *       400:
  *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Pedido não encontrado
+ *       500:
+ *         description: Falha ao criar pagamento Pix
  */
-router.post("/pix", (req, res) => controller.createPixPayment(req, res));
+router.post(
+  "/pix",
+  authMiddleware,
+  validate(pixPaymentSchema),
+  (req, res) => controller.createPixPayment(req, res)
+);
 
 /**
  * @swagger
  * /payments/checkout:
  *   post:
- *     summary: Criar checkout Mercado Pago
+ *     summary: Cria checkout Mercado Pago
+ *     description: Cria um link de pagamento usando o total real do pedido salvo no backend.
  *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           example:
- *             amount: 89.90
- *             description: "Kit espiritual"
+ *           schema:
+ *             type: object
+ *             required: [orderId]
+ *             properties:
+ *               orderId:
+ *                 type: integer
+ *                 example: 1
  *     responses:
  *       201:
- *         description: Checkout criado com sucesso
+ *         description: Checkout criado
  *       400:
  *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Pedido não encontrado
+ *       500:
+ *         description: Falha ao criar checkout Mercado Pago
  */
-router.post("/checkout", (req, res) => controller.createMercadoPagoPayment(req, res));
+router.post(
+  "/checkout",
+  authMiddleware,
+  validate(mercadoPagoSchema),
+  (req, res) => controller.createMercadoPagoPayment(req, res)
+);
 
 /**
  * @swagger
  * /payments/webhook:
  *   post:
- *     summary: Webhook Mercado Pago
+ *     summary: Recebe webhook do Mercado Pago
  *     tags: [Payments]
  *     requestBody:
  *       required: false
  *       content:
  *         application/json:
- *           example:
- *             type: "payment"
- *             data:
- *               id: 123456789
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 example: payment
+ *               data:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     example: 123456789
  *     responses:
  *       200:
  *         description: Webhook processado
+ *       400:
+ *         description: Erro ao processar webhook
  */
-router.post("/webhook", (req, res) => controller.handleWebhook(req, res));
+router.post("/webhook", (req, res) =>
+  controller.handleWebhook(req, res)
+);
+
+router.get(
+  "/:id/status",
+  authMiddleware,
+  validate(paymentReferenceParamSchema, "params"),
+  (req, res) => controller.getPaymentStatus(req, res)
+);
+
+router.patch(
+  "/:id/cancel",
+  authMiddleware,
+  validate(paymentReferenceParamSchema, "params"),
+  (req, res) => controller.cancelPayment(req, res)
+);
 
 export default router;

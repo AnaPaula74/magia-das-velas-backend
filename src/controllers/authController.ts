@@ -1,65 +1,148 @@
 import type { Request, Response } from "express";
-import { AuthService } from "../services/authService.js";
+
+import AuthService from "../services/authService.js";
+import { success, failure } from "../utils/httpResponses.js";
+import { getErrorMessage, getErrorStatus } from "../utils/errorHandler.js";
 import { logger } from "../utils/logger.js";
 
+import type { RegisterDTO } from "../dtos/auth/register.dto.js";
+import type { LoginDTO } from "../dtos/auth/login.dto.js";
+import type { ResetPasswordDTO } from "../dtos/auth/resetPassword.dto.js";
+
 export class AuthController {
-  constructor(private authService: AuthService = new AuthService()) {}
+  constructor(private authService = new AuthService()) {}
 
   async register(req: Request, res: Response) {
     try {
-      const { name, email, password } = req.body;
-      const result = await this.authService.register(name, email, password);
-      logger.info(`Usuário registrado: ${email}`);
-      return res.status(201).json({ success: true, message: "Usuário criado", data: result });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, error: "Erro ao registrar usuário" });
+      const dto: RegisterDTO = req.body;
+
+      const result = await this.authService.register(dto);
+
+      logger.info(`Novo usuário registrado: ${dto.email}`);
+
+      return success(res, 201, "Usuário registrado com sucesso", {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch (error: unknown) {
+      logger.error("Erro ao registrar usuário", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao registrar usuário")
+      );
     }
   }
 
   async login(req: Request, res: Response) {
     try {
-      const { email, password } = req.body;
-      const result = await this.authService.login(email, password);
-      logger.info(`Login realizado: ${email}`);
-      return res.status(200).json({ success: true, message: "Login realizado", data: result });
-    } catch (error: any) {
-      return res.status(401).json({ success: false, error: error.message || "Credenciais inválidas" });
+      const dto: LoginDTO = req.body;
+
+      const result = await this.authService.login(dto);
+
+      logger.info(`Login realizado: ${dto.email}`);
+
+      return success(res, 200, "Login realizado com sucesso", {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch (error: unknown) {
+      logger.error("Erro ao fazer login", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao fazer login")
+      );
     }
   }
 
   async refresh(req: Request, res: Response) {
     try {
       const { refreshToken } = req.body;
-      if (!refreshToken) {
-        return res.status(401).json({ success: false, error: "Refresh token não enviado" });
-      }
-      const decoded = this.authService.verifyRefreshToken(refreshToken) as any;
-      const newAccessToken = this.authService.signAccessToken({ id: decoded.id });
-      return res.json({ success: true, message: "Token atualizado", data: { accessToken: newAccessToken } });
-    } catch {
-      return res.status(401).json({ success: false, error: "Token inválido ou expirado" });
+
+      const tokens = await this.authService.refresh(refreshToken);
+
+      logger.info("Refresh token rotacionado");
+
+      return success(res, 200, "Token renovado com sucesso", tokens);
+    } catch (error: unknown) {
+      logger.error("Erro ao renovar token", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao renovar token")
+      );
+    }
+  }
+
+  async logout(req: Request, res: Response) {
+    try {
+      const { refreshToken } = req.body;
+
+      await this.authService.logout(refreshToken);
+
+      logger.info("Logout realizado");
+
+      return success(res, 200, "Logout realizado com sucesso");
+    } catch (error: unknown) {
+      logger.error("Erro ao fazer logout", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao fazer logout")
+      );
     }
   }
 
   async forgotPassword(req: Request, res: Response) {
     try {
       const { email } = req.body;
-      await this.authService.forgotPassword(email);
+
+      const result = await this.authService.forgotPassword(email);
+
       logger.info(`Solicitação de recuperação de senha para: ${email}`);
-      return res.json({ success: true, message: "E-mail de recuperação enviado" });
-    } catch (error: any) {
-      return res.status(404).json({ success: false, error: error.message || "Usuário não encontrado" });
+
+      return success(res, 200, result.message);
+    } catch (error: unknown) {
+      logger.error("Erro ao solicitar recuperação de senha", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao solicitar recuperação de senha")
+      );
     }
   }
 
   async resetPassword(req: Request, res: Response) {
     try {
-      const { token, newPassword } = req.body;
-      await this.authService.resetPassword(token, newPassword);
-      logger.info(`Senha redefinida com token válido`);
-      return res.json({ success: true, message: "Senha redefinida com sucesso" });
-    } catch (error: any) {
-      return res.status(400).json({ success: false, error: error.message || "Token inválido ou expirado" });
+      const dto: ResetPasswordDTO = req.body;
+
+      const result = await this.authService.resetPassword(
+        dto.token,
+        dto.password
+      );
+
+      logger.info("Senha redefinida com sucesso");
+
+      return success(res, 200, result.message);
+    } catch (error: unknown) {
+      logger.error("Erro ao redefinir senha", { error });
+
+      return failure(
+        res,
+        getErrorStatus(error),
+        getErrorMessage(error, "Erro ao redefinir senha")
+      );
     }
   }
 }
+
+const controller = new AuthController();
+export default controller;
