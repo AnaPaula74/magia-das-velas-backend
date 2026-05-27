@@ -17,7 +17,7 @@ O projeto foi desenvolvido utilizando arquitetura em camadas, autenticação JWT
 - JWT
 - Argon2
 - Zod
-- Multer
+- Muller
 - Mercado Pago SDK
 - Nodemailer
 - Winston
@@ -105,7 +105,7 @@ src/
 
 - Avaliação de produtos
 - Média de avaliações
-- Controle de review duplicada
+
 
 ## Wishlist
 
