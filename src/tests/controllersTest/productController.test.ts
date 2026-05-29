@@ -53,7 +53,7 @@ describe("ProductController", () => {
   });
 
   it("lista produtos", async () => {
-    jest.spyOn(ProductService.prototype, "getProducts").mockResolvedValue([
+    const getProductsSpy = jest.spyOn(ProductService.prototype, "getProducts").mockResolvedValue([
       {
         id: 1,
         name: "Vela",
@@ -61,13 +61,20 @@ describe("ProductController", () => {
     ] as any);
 
     const req: any = {
-      query: {},
+      query: {
+        categoryId: 2,
+      },
     };
 
     const res = mockResponse();
 
     await controller.getAll(req, res);
 
+    expect(getProductsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categoryId: 2,
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

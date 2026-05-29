@@ -22,10 +22,6 @@ export class WishlistController {
 
       const productId = Number(req.body.productId);
 
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
-
       const dto: AddWishlistDTO = {
         userId: req.user.id,
         productId,
@@ -59,10 +55,6 @@ export class WishlistController {
       }
 
       const productId = Number(req.params.productId);
-
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
 
       const dto: RemoveWishlistItemDTO = {
         userId: req.user.id,
@@ -124,10 +116,6 @@ export class WishlistController {
       }
 
       const productId = Number(req.params.productId);
-
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
 
       const exists = await this.wishlistService.exists(req.user.id, productId);
 

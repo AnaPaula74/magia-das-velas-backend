@@ -15,23 +15,34 @@ if (!folderNameArg || !historyTableArg) {
   process.exit(1);
 }
 
-const folderName = folderNameArg as string;
-const historyTable = historyTableArg as string;
-
 const allowedFolders = ["migrations", "seeds"] as const;
 const allowedHistoryTables = ["schema_migrations", "schema_seeds"] as const;
 
-if (!allowedFolders.includes(folderName as any)) {
+type SqlFolder = (typeof allowedFolders)[number];
+type HistoryTable = (typeof allowedHistoryTables)[number];
+
+function isAllowedFolder(value: string): value is SqlFolder {
+  return allowedFolders.includes(value as SqlFolder);
+}
+
+function isAllowedHistoryTable(value: string): value is HistoryTable {
+  return allowedHistoryTables.includes(value as HistoryTable);
+}
+
+if (!isAllowedFolder(folderNameArg)) {
   console.error("Pasta inválida. Use apenas: migrations ou seeds.");
   process.exit(1);
 }
 
-if (!allowedHistoryTables.includes(historyTable as any)) {
+if (!isAllowedHistoryTable(historyTableArg)) {
   console.error(
     "Tabela de histórico inválida. Use apenas: schema_migrations ou schema_seeds."
   );
   process.exit(1);
 }
+
+const folderName = folderNameArg;
+const historyTable = historyTableArg;
 
 const dbConfig = {
   host: process.env.DB_HOST ?? "127.0.0.1",

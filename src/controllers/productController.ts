@@ -27,19 +27,9 @@ export class ProductController {
         price: Number(req.body.price),
         image_url: req.file ? `/uploads/${req.file.filename}` : undefined,
         stock: Number(req.body.stock),
+        categoryId:
+          req.body.categoryId !== undefined ? Number(req.body.categoryId) : undefined,
       };
-
-      if (!dto.name || dto.name.length < 3) {
-        return failure(res, 400, "Nome do produto deve ter no mínimo 3 caracteres");
-      }
-
-      if (dto.price <= 0) {
-        return failure(res, 400, "Preço deve ser maior que zero");
-      }
-
-      if (dto.stock < 0) {
-        return failure(res, 400, "Estoque não pode ser negativo");
-      }
 
       const result = await this.productService.createProduct(dto);
 
@@ -74,6 +64,10 @@ export class ProductController {
         order: req.query.order === "ASC" ? "ASC" : "DESC",
       };
 
+      if (req.query.categoryId !== undefined) {
+        dto.categoryId = Number(req.query.categoryId);
+      }
+
       const products = await this.productService.getProducts(dto);
 
       logger.info(`Produtos listados com filtros: page=${page}, limit=${limit}`);
@@ -92,10 +86,6 @@ export class ProductController {
   async getById(req: Request, res: Response) {
     try {
       const productId = Number(req.params.id);
-
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
 
       const product = await this.productService.getProductById(productId);
 
@@ -120,29 +110,15 @@ export class ProductController {
 
       const productId = Number(req.params.id);
 
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
-
       const dto: UpdateProductDTO = {
         name: req.body.name?.trim(),
         description: req.body.description?.trim(),
-        price: req.body.price ? Number(req.body.price) : undefined,
+        price: req.body.price !== undefined ? Number(req.body.price) : undefined,
         image_url: req.file ? `/uploads/${req.file.filename}` : undefined,
-        stock: req.body.stock ? Number(req.body.stock) : undefined,
+        stock: req.body.stock !== undefined ? Number(req.body.stock) : undefined,
+        categoryId:
+          req.body.categoryId !== undefined ? Number(req.body.categoryId) : undefined,
       };
-
-      if (dto.name && dto.name.length < 3) {
-        return failure(res, 400, "Nome do produto deve ter no mínimo 3 caracteres");
-      }
-
-      if (dto.price !== undefined && dto.price <= 0) {
-        return failure(res, 400, "Preço deve ser maior que zero");
-      }
-
-      if (dto.stock !== undefined && dto.stock < 0) {
-        return failure(res, 400, "Estoque não pode ser negativo");
-      }
 
       const result = await this.productService.updateProduct(productId, dto);
 
@@ -176,10 +152,6 @@ export class ProductController {
       }
 
       const productId = Number(req.params.id);
-
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
 
       const result = await this.productService.deleteProduct(productId);
 

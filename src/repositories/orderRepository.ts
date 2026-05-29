@@ -23,6 +23,16 @@ export interface OrderPaymentRow extends RowDataPacket {
   created_at: Date;
 }
 
+export interface AdminOrderRow extends RowDataPacket {
+  id: number;
+  user_id: number;
+  user_name: string;
+  user_email: string;
+  total: number;
+  status: string;
+  created_at: Date;
+}
+
 export interface OrderItemDetailsRow extends RowDataPacket {
   id: number;
   order_id: number;
@@ -43,9 +53,12 @@ export default class OrderRepository {
     userId: number
   ): Promise<OrderCartItemRow[]> {
     const [rows] = (await conn.query(
-      `SELECT cart_items.product_id, cart_items.quantity, products.price
+      `SELECT cart_items.product_id,
+              cart_items.quantity,
+              products.price
        FROM cart_items
-       JOIN products ON products.id = cart_items.product_id
+       JOIN products
+         ON products.id = cart_items.product_id
        WHERE cart_items.user_id = ?`,
       [userId]
     )) as [OrderCartItemRow[], unknown];
@@ -58,7 +71,10 @@ export default class OrderRepository {
     productId: number
   ): Promise<ProductStockRow | null> {
     const [rows] = (await conn.query(
-      "SELECT stock FROM products WHERE id = ? FOR UPDATE",
+      `SELECT stock
+       FROM products
+       WHERE id = ?
+       FOR UPDATE`,
       [productId]
     )) as [ProductStockRow[], unknown];
 
@@ -72,7 +88,9 @@ export default class OrderRepository {
     status: string
   ): Promise<ResultSetHeader> {
     const [result] = (await conn.query(
-      "INSERT INTO orders (user_id, total, status) VALUES (?, ?, ?)",
+      `INSERT INTO orders
+        (user_id, total, status)
+       VALUES (?, ?, ?)`,
       [userId, total, status]
     )) as [ResultSetHeader, unknown];
 
@@ -87,7 +105,9 @@ export default class OrderRepository {
     price: number
   ): Promise<ResultSetHeader> {
     const [result] = (await conn.query(
-      "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)",
+      `INSERT INTO order_items
+        (order_id, product_id, quantity, price)
+       VALUES (?, ?, ?, ?)`,
       [orderId, productId, quantity, price]
     )) as [ResultSetHeader, unknown];
 
@@ -100,7 +120,9 @@ export default class OrderRepository {
     quantity: number
   ): Promise<ResultSetHeader> {
     const [result] = (await conn.query(
-      "UPDATE products SET stock = stock - ? WHERE id = ?",
+      `UPDATE products
+       SET stock = stock - ?
+       WHERE id = ?`,
       [quantity, productId]
     )) as [ResultSetHeader, unknown];
 
@@ -112,20 +134,66 @@ export default class OrderRepository {
     userId: number
   ): Promise<ResultSetHeader> {
     const [result] = (await conn.query(
-      "DELETE FROM cart_items WHERE user_id = ?",
+      `DELETE FROM cart_items
+       WHERE user_id = ?`,
       [userId]
     )) as [ResultSetHeader, unknown];
 
     return result;
   }
 
-  async getOrdersByUser(userId: number) {
-    const [orders] = await connection.query(
-      "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC",
+  async getOrdersByUser(
+    userId: number
+  ): Promise<OrderPaymentRow[]> {
+    const [orders] = (await connection.query(
+      `SELECT *
+       FROM orders
+       WHERE user_id = ?
+       ORDER BY created_at DESC`,
       [userId]
-    );
+    )) as [OrderPaymentRow[], unknown];
 
     return orders;
+  }
+
+  async getAllOrders(): Promise<AdminOrderRow[]> {
+    const [rows] = (await connection.query(
+      `SELECT orders.id,
+              orders.user_id,
+              users.name AS user_name,
+              users.email AS user_email,
+              orders.total,
+              orders.status,
+              orders.created_at
+       FROM orders
+       JOIN users
+         ON users.id = orders.user_id
+       ORDER BY orders.created_at DESC`
+    )) as [AdminOrderRow[], unknown];
+
+    return rows;
+  }
+
+  async getOrderByIdForAdmin(
+    orderId: number
+  ): Promise<AdminOrderRow | null> {
+    const [rows] = (await connection.query(
+      `SELECT orders.id,
+              orders.user_id,
+              users.name AS user_name,
+              users.email AS user_email,
+              orders.total,
+              orders.status,
+              orders.created_at
+       FROM orders
+       JOIN users
+         ON users.id = orders.user_id
+       WHERE orders.id = ?
+       LIMIT 1`,
+      [orderId]
+    )) as [AdminOrderRow[], unknown];
+
+    return rows[0] ?? null;
   }
 
   async getOrderByIdForUser(
@@ -133,16 +201,42 @@ export default class OrderRepository {
     userId: number
   ): Promise<OrderPaymentRow | null> {
     const [rows] = (await connection.query(
-      `SELECT id, user_id, total, status, created_at
+      `SELECT id,
+              user_id,
+              total,
+              status,
+              created_at
        FROM orders
-       WHERE id = ? AND user_id = ?`,
+       WHERE id = ?
+         AND user_id = ?`,
       [orderId, userId]
     )) as [OrderPaymentRow[], unknown];
 
     return rows[0] ?? null;
   }
 
-  async getOrderItems(orderId: number): Promise<OrderItemDetailsRow[]> {
+  async findByIdForUser(
+    orderId: number,
+    userId: number
+  ): Promise<OrderPaymentRow | null> {
+    const [rows] = (await connection.query(
+      `SELECT id,
+              user_id,
+              total,
+              status,
+              created_at
+       FROM orders
+       WHERE id = ?
+         AND user_id = ?`,
+      [orderId, userId]
+    )) as [OrderPaymentRow[], unknown];
+
+    return rows[0] ?? null;
+  }
+
+  async getOrderItems(
+    orderId: number
+  ): Promise<OrderItemDetailsRow[]> {
     const [rows] = (await connection.query(
       `SELECT order_items.id,
               order_items.order_id,
@@ -152,7 +246,8 @@ export default class OrderRepository {
               products.name,
               products.image_url
        FROM order_items
-       JOIN products ON products.id = order_items.product_id
+       JOIN products
+         ON products.id = order_items.product_id
        WHERE order_items.order_id = ?`,
       [orderId]
     )) as [OrderItemDetailsRow[], unknown];
@@ -160,26 +255,14 @@ export default class OrderRepository {
     return rows;
   }
 
-  async findByIdForUser(
-    orderId: number,
-    userId: number
-  ): Promise<OrderPaymentRow | null> {
-    const [rows] = (await connection.query(
-      `SELECT id, user_id, total, status, created_at
-       FROM orders
-       WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
-    )) as [OrderPaymentRow[], unknown];
-
-    return rows[0] ?? null;
-  }
-
   async updateStatus(
     orderId: number,
     status: string
   ): Promise<ResultSetHeader> {
     const [result] = (await connection.query(
-      "UPDATE orders SET status = ? WHERE id = ?",
+      `UPDATE orders
+       SET status = ?
+       WHERE id = ?`,
       [status, orderId]
     )) as [ResultSetHeader, unknown];
 

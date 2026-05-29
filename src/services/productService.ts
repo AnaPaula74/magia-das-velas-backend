@@ -49,15 +49,20 @@ export class ProductService {
     const search = dto.search ?? "";
     const order = dto.order === "ASC" ? "ASC" : "DESC";
 
+    if (dto.categoryId !== undefined) {
+      await this.ensureCategoryExists(dto.categoryId);
+    }
+
     const products = await this.productRepository.findAll(
       limit,
       offset,
       search,
-      order
+      order,
+      dto.categoryId
     );
 
     logger.info(
-      `Produtos listados: busca="${search}", ordem=${order}, limite=${limit}, offset=${offset}`
+      `Produtos listados: busca="${search}", categoria=${dto.categoryId ?? "todas"}, ordem=${order}, limite=${limit}, offset=${offset}`
     );
 
     return products;

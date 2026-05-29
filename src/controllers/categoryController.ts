@@ -33,10 +33,6 @@ export class CategoryController {
     try {
       const categoryId = Number(req.params.id);
 
-      if (isNaN(categoryId) || categoryId <= 0) {
-        return failure(res, 400, "ID da categoria inválido");
-      }
-
       const category = await this.categoryService.getCategory(categoryId);
 
       logger.info(`Categoria ${categoryId} consultada`);
@@ -60,14 +56,6 @@ export class CategoryController {
 
       const name = req.body.name?.trim();
       const description = req.body.description?.trim();
-
-      if (!name || name.length < 3) {
-        return failure(res, 400, "Nome da categoria deve ter no mínimo 3 caracteres");
-      }
-
-      if (description && description.length > 500) {
-        return failure(res, 400, "Descrição não pode exceder 500 caracteres");
-      }
 
       const result = await this.categoryService.createCategory({
         name,
@@ -101,20 +89,8 @@ export class CategoryController {
 
       const categoryId = Number(req.params.id);
 
-      if (isNaN(categoryId) || categoryId <= 0) {
-        return failure(res, 400, "ID da categoria inválido");
-      }
-
       const name = req.body.name?.trim();
       const description = req.body.description?.trim();
-
-      if (name && name.length < 3) {
-        return failure(res, 400, "Nome da categoria deve ter no mínimo 3 caracteres");
-      }
-
-      if (description && description.length > 500) {
-        return failure(res, 400, "Descrição não pode exceder 500 caracteres");
-      }
 
       const result = await this.categoryService.updateCategory(categoryId, {
         name,
@@ -151,10 +127,6 @@ export class CategoryController {
       }
 
       const categoryId = Number(req.params.id);
-
-      if (isNaN(categoryId) || categoryId <= 0) {
-        return failure(res, 400, "ID da categoria inválido");
-      }
 
       const result = await this.categoryService.deleteCategory(categoryId);
 

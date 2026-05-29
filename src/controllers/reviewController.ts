@@ -23,18 +23,6 @@ export class ReviewController {
       const rating = Number(req.body.rating);
       const comment = req.body.comment?.trim();
 
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
-
-      if (isNaN(rating) || rating < 1 || rating > 5) {
-        return failure(res, 400, "Avaliação deve estar entre 1 e 5 estrelas");
-      }
-
-      if (comment && (comment.length < 3 || comment.length > 1000)) {
-        return failure(res, 400, "Comentário deve ter entre 3 e 1000 caracteres");
-      }
-
       const dto: CreateReviewDTO = {
         userId: req.user.id,
         productId,
@@ -68,10 +56,6 @@ export class ReviewController {
   async getByProduct(req: Request, res: Response) {
     try {
       const productId = Number(req.params.productId);
-
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
 
       const page = Math.max(1, Number(req.query?.page ?? 1));
       const limit = Math.min(50, Math.max(1, Number(req.query?.limit ?? 10)));
@@ -111,10 +95,6 @@ export class ReviewController {
 
       const reviewId = Number(req.params.id);
 
-      if (isNaN(reviewId) || reviewId <= 0) {
-        return failure(res, 400, "ID da review inválido");
-      }
-
       const result = await this.reviewService.delete(reviewId, req.user.id);
 
       await this.auditService.log({
@@ -148,20 +128,8 @@ export class ReviewController {
 
       const reviewId = Number(req.params.id);
 
-      if (isNaN(reviewId) || reviewId <= 0) {
-        return failure(res, 400, "ID da review inválido");
-      }
-
-      const rating = req.body.rating ? Number(req.body.rating) : undefined;
+      const rating = req.body.rating !== undefined ? Number(req.body.rating) : undefined;
       const comment = req.body.comment?.trim();
-
-      if (rating !== undefined && (isNaN(rating) || rating < 1 || rating > 5)) {
-        return failure(res, 400, "Avaliação deve estar entre 1 e 5 estrelas");
-      }
-
-      if (comment && (comment.length < 3 || comment.length > 1000)) {
-        return failure(res, 400, "Comentário deve ter entre 3 e 1000 caracteres");
-      }
 
       const result = await this.reviewService.update(reviewId, req.user.id, {
         rating,

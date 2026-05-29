@@ -49,10 +49,6 @@ export class AddressController {
 
       const addressId = Number(req.params.id);
 
-      if (isNaN(addressId) || addressId <= 0) {
-        return failure(res, 400, "ID do endereço inválido");
-      }
-
       const address = await this.addressService.getById(addressId, req.user.id);
 
       logger.info(`Endereço ${addressId} consultado pelo usuário ${req.user.id}`);
@@ -82,22 +78,6 @@ export class AddressController {
       const city = req.body.city?.trim();
       const state = req.body.state?.trim().toUpperCase();
       const zip = req.body.zip?.trim();
-
-      if (!street || street.length < 5) {
-        return failure(res, 400, "Rua deve ter no mínimo 5 caracteres");
-      }
-
-      if (!city || city.length < 3) {
-        return failure(res, 400, "Cidade deve ter no mínimo 3 caracteres");
-      }
-
-      if (!state || state.length !== 2) {
-        return failure(res, 400, "Estado deve ter exatamente 2 caracteres");
-      }
-
-      if (!this.isValidZip(zip)) {
-        return failure(res, 400, "CEP inválido");
-      }
 
       const dto: CreateAddressDTO = {
         userId: req.user.id,
@@ -136,30 +116,10 @@ export class AddressController {
 
       const addressId = Number(req.params.id);
 
-      if (isNaN(addressId) || addressId <= 0) {
-        return failure(res, 400, "ID do endereço inválido");
-      }
-
       const street = req.body.street?.trim();
       const city = req.body.city?.trim();
       const state = req.body.state?.trim().toUpperCase();
       const zip = req.body.zip?.trim();
-
-      if (street && street.length < 5) {
-        return failure(res, 400, "Rua deve ter no mínimo 5 caracteres");
-      }
-
-      if (city && city.length < 3) {
-        return failure(res, 400, "Cidade deve ter no mínimo 3 caracteres");
-      }
-
-      if (state && state.length !== 2) {
-        return failure(res, 400, "Estado deve ter exatamente 2 caracteres");
-      }
-
-      if (zip && !this.isValidZip(zip)) {
-        return failure(res, 400, "CEP inválido");
-      }
 
       const dto: UpdateAddressDTO = {
         userId: req.user.id,
@@ -202,10 +162,6 @@ export class AddressController {
 
       const addressId = Number(req.params.id);
 
-      if (isNaN(addressId) || addressId <= 0) {
-        return failure(res, 400, "ID do endereço inválido");
-      }
-
       await this.addressService.delete(addressId, req.user.id);
 
       await this.auditService.log(
@@ -231,10 +187,6 @@ export class AddressController {
     }
   }
 
-  private isValidZip(zip: string): boolean {
-    const zipRegex = /^\d{5}-?\d{3}$/;
-    return zipRegex.test(zip);
-  }
 }
 
 const controller = new AddressController();

@@ -4,8 +4,17 @@ import {
   NotFoundError,
   ConflictError,
 } from "../errors/customErrors.js";
-import type { User } from "../entities/user.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: "user" | "admin";
+  phone?: string | null;
+  created_at?: Date;
+}
 
 interface UserRow extends RowDataPacket, User {}
 

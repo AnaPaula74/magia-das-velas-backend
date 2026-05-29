@@ -34,7 +34,7 @@ const controller = new AuthController();
  *                 example: ana@email.com
  *               password:
  *                 type: string
- *                 example: senha12345
+ *                 example: Senha@123
  *     responses:
  *       201:
  *         description: Usuário registrado com sucesso
@@ -68,7 +68,7 @@ router.post(
  *                 example: ana@email.com
  *               password:
  *                 type: string
- *                 example: senha12345
+ *                 example: Senha@123
  *     responses:
  *       200:
  *         description: Login realizado com sucesso
@@ -192,7 +192,7 @@ router.post(
  *                 example: token_recebido_no_email
  *               password:
  *                 type: string
- *                 example: novaSenha123
+ *                 example: NovaSenha@123
  *     responses:
  *       200:
  *         description: Senha redefinida com sucesso

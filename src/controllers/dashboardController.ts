@@ -53,7 +53,7 @@ export class DashboardController {
         return failure(res, 403, "Acesso negado. Apenas administradores podem acessar relatórios");
       }
 
-      const limit = Math.min(100, Math.max(1, Number(req.query?.limit ?? 10)));
+      const limit = Number(req.query?.limit ?? 10);
 
       const result = await this.dashboardService.topProducts(limit);
 
@@ -86,20 +86,10 @@ export class DashboardController {
         return failure(res, 403, "Acesso negado. Apenas administradores podem acessar relatórios");
       }
 
-      const startDate = req.query.startDate ? new Date(String(req.query.startDate)) : undefined;
-      const endDate = req.query.endDate ? new Date(String(req.query.endDate)) : undefined;
-
-      if (startDate && isNaN(startDate.getTime())) {
-        return failure(res, 400, "Data de início inválida");
-      }
-
-      if (endDate && isNaN(endDate.getTime())) {
-        return failure(res, 400, "Data de término inválida");
-      }
-
-      if (startDate && endDate && startDate > endDate) {
-        return failure(res, 400, "Data de início não pode ser posterior à data de término");
-      }
+      const { startDate, endDate } = (req.query ?? {}) as {
+        startDate?: Date;
+        endDate?: Date;
+      };
 
       const report = await this.dashboardService.getSalesReport(startDate, endDate);
 

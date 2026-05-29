@@ -2,6 +2,11 @@ import { Router } from "express";
 import { DashboardController } from "../controllers/dashboardController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { adminMiddleware } from "../middlewares/adminMiddleware.js";
+import { validate } from "../middlewares/validate.js";
+import {
+  salesReportQuerySchema,
+  topProductsQuerySchema,
+} from "../validators/dashboardValidator.js";
 
 const router = Router();
 const dashboardController = new DashboardController();
@@ -52,14 +57,54 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) =>
  *       403:
  *         description: Acesso negado
  */
-router.get("/top-products", authMiddleware, adminMiddleware, (req, res) =>
-  dashboardController.topProducts(req, res)
+router.get(
+  "/top-products",
+  authMiddleware,
+  adminMiddleware,
+  validate(topProductsQuerySchema, "query"),
+  (req, res) => dashboardController.topProducts(req, res)
 );
 
-router.get("/sales-report", authMiddleware, adminMiddleware, (req, res) =>
-  dashboardController.getSalesReport(req, res)
+/**
+ * @swagger
+ * /dashboard/sales-report:
+ *   get:
+ *     summary: Retorna relatório de vendas
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Relatório de vendas retornado
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado
+ */
+router.get(
+  "/sales-report",
+  authMiddleware,
+  adminMiddleware,
+  validate(salesReportQuerySchema, "query"),
+  (req, res) => dashboardController.getSalesReport(req, res)
 );
 
+/**
+ * @swagger
+ * /dashboard/user-metrics:
+ *   get:
+ *     summary: Retorna métricas de usuários
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Métricas de usuários retornadas
+ *       401:
+ *         description: Não autenticado
+ *       403:
+ *         description: Acesso negado
+ */
 router.get("/user-metrics", authMiddleware, adminMiddleware, (req, res) =>
   dashboardController.getUserMetrics(req, res)
 );

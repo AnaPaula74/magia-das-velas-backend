@@ -121,6 +121,32 @@ router.post("/webhook", (req, res) =>
   controller.handleWebhook(req, res)
 );
 
+/**
+ * @swagger
+ * /payments/{id}/status:
+ *   get:
+ *     summary: Consulta status de um pagamento
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "123456789"
+ *         description: ID interno ou referência do pagamento
+ *     responses:
+ *       200:
+ *         description: Status do pagamento retornado
+ *       400:
+ *         description: ID do pagamento inválido
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Pagamento não encontrado
+ */
 router.get(
   "/:id/status",
   authMiddleware,
@@ -128,6 +154,32 @@ router.get(
   (req, res) => controller.getPaymentStatus(req, res)
 );
 
+/**
+ * @swagger
+ * /payments/{id}/cancel:
+ *   patch:
+ *     summary: Cancela um pagamento localmente
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "123456789"
+ *         description: ID interno ou referência do pagamento
+ *     responses:
+ *       200:
+ *         description: Pagamento cancelado
+ *       400:
+ *         description: ID inválido ou pagamento não cancelável
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Pagamento não encontrado
+ */
 router.patch(
   "/:id/cancel",
   authMiddleware,

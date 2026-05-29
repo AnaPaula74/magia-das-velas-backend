@@ -53,4 +53,10 @@ export const productQuerySchema = z.object({
     .enum(["ASC", "DESC", "asc", "desc"])
     .default("DESC")
     .transform((value) => value.toUpperCase() as "ASC" | "DESC"),
+
+  categoryId: z.coerce
+    .number()
+    .int("Categoria deve ser um número inteiro")
+    .positive("Categoria inválida")
+    .optional(),
 });

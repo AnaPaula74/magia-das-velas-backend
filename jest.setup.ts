@@ -37,11 +37,17 @@ export const mockExecute = jest.fn(async () => [
   },
 ]);
 
+export const mockBeginTransaction = jest.fn(async () => {});
+export const mockCommit = jest.fn(async () => {});
+export const mockRollback = jest.fn(async () => {});
 export const mockRelease = jest.fn();
 
 export const mockConnection = {
   query: mockQuery,
   execute: mockExecute,
+  beginTransaction: mockBeginTransaction,
+  commit: mockCommit,
+  rollback: mockRollback,
   release: mockRelease,
 };
 

@@ -36,7 +36,6 @@ src/
 ├── controllers/
 ├── database/
 ├── dtos/
-├── entities/
 ├── enums/
 ├── errors/
 ├── middlewares/
@@ -198,7 +197,7 @@ PORT=3000
 DB_HOST=localhost
 DB_PORT=3307
 DB_USER=root
-DB_PASSWORD=magia1234567 (Exemplo)
+DB_PASSWORD=change_me
 DB_NAME=magia_das_velas
 
 SMTP_HOST=127.0.0.1
@@ -206,11 +205,11 @@ SMTP_PORT=1025
 SMTP_USER=
 SMTP_PASS=
 
-JWT_SECRET=magia1234567 (Exemplo)
-JWT_REFRESH_SECRET=magia1234567 (Exemplo)
+JWT_SECRET=change_me
+JWT_REFRESH_SECRET=change_me
 
-MERCADO_PAGO_ACCESS_TOKEN=magia1234567 (Exemplo)
-MERCADO_PAGO_WEBHOOK_SECRET=magia1234567 (Exemplo)
+MERCADO_PAGO_ACCESS_TOKEN=change_me
+MERCADO_PAGO_WEBHOOK_SECRET=change_me
 
 FRONTEND_URL=http://localhost:5173
 APP_URL=http://localhost:5173
@@ -463,27 +462,21 @@ Resposta:
 
 ---
 
-# Melhorias e Refatorações Realizadas
+# Destaques Técnicos
 
-- Padronização DTOs
-- Refatoração controllers
-- Refatoração services
-- Tratamento centralizado de erros
-- Validação robusta com Zod
-- Organização em camadas
-- Tipagem completa TypeScript
-- Middleware de autenticação
-- Middleware admin
-- Auditoria de ações
-- Melhorias de segurança
-- Correções de inconsistências snake_case/camelCase
-- Melhor organização de pagamentos
-- Revisão de repositories
-- Logs estruturados
-- Ajustes em upload de imagens
-- Melhorias em testes
-- Swagger organizado
-- README profissional
+- Arquitetura em camadas com controllers, services, repositories, DTOs e validators
+- TypeScript em modo strict
+- Validação centralizada com Zod para body, params e query
+- Tratamento centralizado de erros e respostas padronizadas
+- Autenticação JWT com access token, refresh token, rotação e logout
+- Controle de acesso por middleware admin
+- Auditoria de ações relevantes
+- Checkout transacional com controle de estoque
+- Integração com Mercado Pago para Pix, checkout e webhook assinado
+- Upload de imagens com validação de tipo e limite de tamanho
+- Logs estruturados com Winston
+- Documentação Swagger organizada por domínio
+- Testes automatizados de controllers, services, middlewares, validators e rotas
 
 ---
 

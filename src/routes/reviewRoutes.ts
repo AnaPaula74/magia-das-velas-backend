@@ -82,6 +82,47 @@ router.get(
   (req, res) => controller.getByProduct(req, res)
 );
 
+/**
+ * @swagger
+ * /reviews/{id}:
+ *   put:
+ *     summary: Atualiza uma avaliação do usuário autenticado
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID da avaliação
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 example: 4
+ *               comment:
+ *                 type: string
+ *                 example: Produto muito bom.
+ *     responses:
+ *       200:
+ *         description: Avaliação atualizada
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Avaliação não encontrada
+ */
 router.put(
   "/:id",
   authMiddleware,
@@ -90,6 +131,32 @@ router.put(
   (req, res) => controller.update(req, res)
 );
 
+/**
+ * @swagger
+ * /reviews/{id}:
+ *   delete:
+ *     summary: Remove uma avaliação do usuário autenticado
+ *     tags: [Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID da avaliação
+ *     responses:
+ *       200:
+ *         description: Avaliação removida
+ *       400:
+ *         description: ID inválido
+ *       401:
+ *         description: Usuário não autenticado
+ *       404:
+ *         description: Avaliação não encontrada
+ */
 router.delete(
   "/:id",
   authMiddleware,

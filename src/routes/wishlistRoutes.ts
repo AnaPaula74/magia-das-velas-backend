@@ -64,6 +64,30 @@ router.post(
   (req, res) => controller.add(req, res)
 );
 
+/**
+ * @swagger
+ * /wishlist/{productId}/exists:
+ *   get:
+ *     summary: Verifica se um produto está na wishlist
+ *     tags: [Wishlist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: ID do produto
+ *     responses:
+ *       200:
+ *         description: Resultado da verificação retornado
+ *       400:
+ *         description: ID do produto inválido
+ *       401:
+ *         description: Usuário não autenticado
+ */
 router.get(
   "/:productId/exists",
   authMiddleware,

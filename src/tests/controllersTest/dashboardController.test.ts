@@ -26,7 +26,7 @@ describe("DashboardController", () => {
   });
 
   it("retorna estatísticas", async () => {
-    jest.spyOn(DashboardService.prototype, "getStats").mockResolvedValue({
+    const getStatsSpy = jest.spyOn(DashboardService.prototype, "getStats").mockResolvedValue({
       users: 10,
       sales: 20,
     } as any);
@@ -41,11 +41,17 @@ describe("DashboardController", () => {
 
     await controller.getStats(req, res);
 
+    expect(getStatsSpy).toHaveBeenCalledTimes(1);
+    expect(AuditService.prototype.log).toHaveBeenCalledWith(
+      1,
+      "DASHBOARD_STATS_VIEW",
+      "Consultou estatísticas do dashboard"
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("retorna produtos mais vendidos", async () => {
-    jest.spyOn(DashboardService.prototype, "topProducts").mockResolvedValue([
+    const topProductsSpy = jest.spyOn(DashboardService.prototype, "topProducts").mockResolvedValue([
       {
         id: 1,
         name: "Vela",
@@ -57,11 +63,53 @@ describe("DashboardController", () => {
         id: 1,
         role: "admin",
       },
+      query: {
+        limit: 5,
+      },
     };
     const res = mockResponse();
 
     await controller.topProducts(req, res);
 
+    expect(topProductsSpy).toHaveBeenCalledWith(5);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("retorna 401 sem usuário autenticado", async () => {
+    const getStatsSpy = jest.spyOn(DashboardService.prototype, "getStats");
+
+    const req: any = {};
+    const res = mockResponse();
+
+    await controller.getStats(req, res);
+
+    expect(getStatsSpy).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: "Usuário não autenticado",
+    });
+  });
+
+  it("retorna 403 para usuário que não é admin", async () => {
+    const topProductsSpy = jest.spyOn(DashboardService.prototype, "topProducts");
+
+    const req: any = {
+      user: {
+        id: 1,
+        role: "user",
+      },
+      query: {},
+    };
+    const res = mockResponse();
+
+    await controller.topProducts(req, res);
+
+    expect(topProductsSpy).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: "Acesso negado. Apenas administradores podem acessar relatórios",
+    });
   });
 });

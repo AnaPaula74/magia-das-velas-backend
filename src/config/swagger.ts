@@ -66,7 +66,7 @@ const options: swaggerJsdoc.Options = {
           properties: {
             name: { type: "string", example: "Ana Paula" },
             email: { type: "string", example: "ana@email.com" },
-            password: { type: "string", example: "senha12345" },
+            password: { type: "string", example: "Senha@123" },
           },
         },
         LoginInput: {
@@ -74,7 +74,7 @@ const options: swaggerJsdoc.Options = {
           required: ["email", "password"],
           properties: {
             email: { type: "string", example: "ana@email.com" },
-            password: { type: "string", example: "senha12345" },
+            password: { type: "string", example: "Senha@123" },
           },
         },
         ProductInput: {
