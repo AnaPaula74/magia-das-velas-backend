@@ -3,6 +3,9 @@ import { jest } from "@jest/globals";
 import {
   mockQuery,
   mockExecute,
+  mockBeginTransaction,
+  mockCommit,
+  mockRollback,
   mockGetConnection,
   mockRelease,
   mockConnection,
@@ -11,6 +14,9 @@ import {
 beforeEach(() => {
   mockQuery.mockReset();
   mockExecute.mockReset();
+  mockBeginTransaction.mockReset();
+  mockCommit.mockReset();
+  mockRollback.mockReset();
   mockGetConnection.mockReset();
   mockRelease.mockReset();
 
@@ -28,5 +34,8 @@ beforeEach(() => {
     },
   ]);
 
+  mockBeginTransaction.mockResolvedValue(undefined);
+  mockCommit.mockResolvedValue(undefined);
+  mockRollback.mockResolvedValue(undefined);
   mockGetConnection.mockResolvedValue(mockConnection);
 });

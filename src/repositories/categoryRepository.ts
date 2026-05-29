@@ -1,8 +1,14 @@
 import { connection } from "../config/database.js";
-import type { Category } from "../entities/category.js";
 import { NotFoundError } from "../errors/customErrors.js";
 import { logger } from "../utils/logger.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+
+export interface Category {
+  id: number;
+  name: string;
+  description?: string | undefined;
+  created_at?: Date;
+}
 
 interface CategoryRow extends RowDataPacket, Category {}
 

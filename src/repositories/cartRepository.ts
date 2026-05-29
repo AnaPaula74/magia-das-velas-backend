@@ -8,6 +8,7 @@ export interface CartItemRow extends RowDataPacket {
   price: number;
   image_url: string;
   quantity: number;
+  stock: number;
   subtotal: number;
 }
 
@@ -97,6 +98,7 @@ export default class CartRepository {
               products.name,
               products.price,
               products.image_url,
+              products.stock,
               cart_items.quantity,
               (products.price * cart_items.quantity) AS subtotal
        FROM cart_items

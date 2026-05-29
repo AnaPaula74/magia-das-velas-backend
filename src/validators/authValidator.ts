@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const strongPassword = z
+  .string()
+  .min(8, "Senha deve ter pelo menos 8 caracteres")
+  .regex(/[A-Z]/, "Senha deve conter pelo menos uma letra maiúscula")
+  .regex(/[a-z]/, "Senha deve conter pelo menos uma letra minúscula")
+  .regex(/[0-9]/, "Senha deve conter pelo menos um número")
+  .regex(/[^A-Za-z0-9]/, "Senha deve conter pelo menos um símbolo");
+
 export const registerSchema = z.object({
   name: z
     .string()
@@ -12,9 +20,7 @@ export const registerSchema = z.object({
     .email("E-mail inválido")
     .toLowerCase(),
 
-  password: z
-    .string()
-    .min(8, "Senha deve ter pelo menos 8 caracteres"),
+  password: strongPassword,
 });
 
 export const loginSchema = z.object({
@@ -48,7 +54,5 @@ export const resetPasswordSchema = z.object({
     .string()
     .min(1, "Token obrigatório"),
 
-  password: z
-    .string()
-    .min(8, "Senha deve ter pelo menos 8 caracteres"),
+  password: strongPassword,
 });

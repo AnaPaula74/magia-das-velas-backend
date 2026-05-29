@@ -306,4 +306,49 @@ describe("PaymentController", () => {
       error: "Webhook sem assinatura válida",
     });
   });
+
+  it("retorna erro ao processar webhook com assinatura válida e payload inválido", async () => {
+    const webhookSpy = jest.spyOn(
+      PaymentService.prototype,
+      "processWebhook"
+    );
+
+    const requestId = "request-test-123";
+    const ts = "1710000000";
+    const dataId = "123456";
+    const secret = "test_webhook_secret";
+
+    const signature = createMercadoPagoSignature({
+      dataId,
+      requestId,
+      ts,
+      secret,
+    });
+
+    const req: any = {
+      body: {},
+      query: {
+        "data.id": dataId,
+      },
+      header: jest.fn((name: string) => {
+        const headers: Record<string, string> = {
+          "x-signature": signature,
+          "x-request-id": requestId,
+        };
+
+        return headers[name.toLowerCase()];
+      }),
+    };
+
+    const res = mockResponse();
+
+    await controller.handleWebhook(req, res);
+
+    expect(webhookSpy).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: "Dados do webhook inválidos",
+    });
+  });
 });

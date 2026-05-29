@@ -118,6 +118,20 @@ router.put(
   (req, res) => controller.update(req, res)
 );
 
+/**
+ * @swagger
+ * /cart/clear:
+ *   delete:
+ *     summary: Limpa o carrinho do usuário autenticado
+ *     tags: [Cart]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Carrinho limpo com sucesso
+ *       401:
+ *         description: Usuário não autenticado
+ */
 router.delete(
   "/clear",
   authMiddleware,

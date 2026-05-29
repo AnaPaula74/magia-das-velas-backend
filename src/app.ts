@@ -28,11 +28,12 @@ export const app = express();
 
 const API_PREFIX = "/api/v1";
 
-const allowedOrigins = [
+const allowedOrigins = Array.from(new Set([
   env.FRONTEND_URL,
   env.APP_URL,
   "http://localhost:5173",
-];
+  "http://localhost:5174",
+]));
 
 app.use(
   helmet({

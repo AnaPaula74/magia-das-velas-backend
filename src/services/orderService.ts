@@ -1,5 +1,3 @@
-// src/services/orderService.ts
-
 import { logger } from "../utils/logger.js";
 
 import {
@@ -15,41 +13,30 @@ import type { UpdateOrderStatusDTO } from "../dtos/order/updateOrderStatus.dto.j
 import { OrderStatus } from "../enums/orderStatus.js";
 
 export class OrderService {
-  constructor(
-    private orderRepository =
-      new OrderRepository()
-  ) {}
+  constructor(private orderRepository = new OrderRepository()) {}
 
   async checkout(dto: CheckoutDTO) {
-    const conn =
-      await this.orderRepository.getConnection();
+    const conn = await this.orderRepository.getConnection();
 
     try {
       await conn.beginTransaction();
 
-      const items =
-        await this.orderRepository.getCartItemsForCheckout(
-          conn,
-          dto.userId
-        );
+      const items = await this.orderRepository.getCartItemsForCheckout(
+        conn,
+        dto.userId
+      );
 
       if (items.length === 0) {
-        throw new NotFoundError(
-          "Carrinho vazio"
-        );
+        throw new NotFoundError("Carrinho vazio");
       }
 
       for (const item of items) {
-        const product =
-          await this.orderRepository.getProductStockForUpdate(
-            conn,
-            item.product_id
-          );
+        const product = await this.orderRepository.getProductStockForUpdate(
+          conn,
+          item.product_id
+        );
 
-        if (
-          !product ||
-          product.stock < item.quantity
-        ) {
+        if (!product || product.stock < item.quantity) {
           throw new ValidationError(
             `Estoque insuficiente para produto ID ${item.product_id}`
           );
@@ -57,23 +44,18 @@ export class OrderService {
       }
 
       const total = items.reduce(
-        (sum, item) =>
-          sum +
-          Number(item.price) *
-            item.quantity,
+        (sum, item) => sum + Number(item.price) * item.quantity,
         0
       );
 
-      const orderResult =
-        await this.orderRepository.createOrder(
-          conn,
-          dto.userId,
-          total,
-          OrderStatus.PENDING
-        );
+      const orderResult = await this.orderRepository.createOrder(
+        conn,
+        dto.userId,
+        total,
+        OrderStatus.PENDING
+      );
 
-      const orderId =
-        orderResult.insertId;
+      const orderId = orderResult.insertId;
 
       for (const item of items) {
         await this.orderRepository.createOrderItem(
@@ -91,16 +73,11 @@ export class OrderService {
         );
       }
 
-      await this.orderRepository.clearCart(
-        conn,
-        dto.userId
-      );
+      await this.orderRepository.clearCart(conn, dto.userId);
 
       await conn.commit();
 
-      logger.info(
-        `Pedido criado: ${orderId}`
-      );
+      logger.info(`Pedido criado: ${orderId}`);
 
       return {
         orderId,
@@ -111,10 +88,7 @@ export class OrderService {
     } catch (error) {
       await conn.rollback();
 
-      logger.error(
-        "Erro no checkout",
-        { error }
-      );
+      logger.error("Erro no checkout", { error });
 
       throw error;
     } finally {
@@ -123,9 +97,11 @@ export class OrderService {
   }
 
   async getOrders(userId: number) {
-    return this.orderRepository.getOrdersByUser(
-      userId
-    );
+    return this.orderRepository.getOrdersByUser(userId);
+  }
+
+  async getAllOrders() {
+    return this.orderRepository.getAllOrders();
   }
 
   async getOrderById(orderId: number, userId: number) {
@@ -146,21 +122,35 @@ export class OrderService {
     };
   }
 
-  async updateStatus(
-    dto: UpdateOrderStatusDTO
-  ) {
-    const result =
-      await this.orderRepository.updateStatus(
-        dto.orderId,
-        dto.status
-      );
+  async getOrderByIdForAdmin(orderId: number) {
+    const order = await this.orderRepository.getOrderByIdForAdmin(orderId);
 
-    if (result.affectedRows === 0) {
-      throw new NotFoundError(
-        "Pedido não encontrado"
-      );
+    if (!order) {
+      throw new NotFoundError("Pedido não encontrado");
     }
 
-    return result;
+    const items = await this.orderRepository.getOrderItems(orderId);
+
+    return {
+      ...order,
+      items,
+    };
+  }
+
+  async updateStatus(dto: UpdateOrderStatusDTO) {
+    const result = await this.orderRepository.updateStatus(
+      dto.orderId,
+      dto.status
+    );
+
+    if (result.affectedRows === 0) {
+      throw new NotFoundError("Pedido não encontrado");
+    }
+
+    return {
+      orderId: dto.orderId,
+      status: dto.status,
+      updated: true,
+    };
   }
 }

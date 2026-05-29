@@ -25,18 +25,6 @@ export class CartController {
       const productId = Number(req.body.productId);
       const quantity = Number(req.body.quantity);
 
-      if (isNaN(productId) || productId <= 0) {
-        return failure(res, 400, "ID do produto inválido");
-      }
-
-      if (isNaN(quantity) || quantity <= 0) {
-        return failure(res, 400, "Quantidade deve ser maior que zero");
-      }
-
-      if (quantity > 999) {
-        return failure(res, 400, "Quantidade máxima excedida");
-      }
-
       const dto: AddCartItemDTO = {
         userId: req.user.id,
         productId,
@@ -108,18 +96,6 @@ export class CartController {
       const cartItemId = Number(req.params.id);
       const quantity = Number(req.body.quantity);
 
-      if (isNaN(cartItemId) || cartItemId <= 0) {
-        return failure(res, 400, "ID do item do carrinho inválido");
-      }
-
-      if (isNaN(quantity) || quantity <= 0) {
-        return failure(res, 400, "Quantidade deve ser maior que zero");
-      }
-
-      if (quantity > 999) {
-        return failure(res, 400, "Quantidade máxima excedida");
-      }
-
       const dto: UpdateCartItemDTO = {
         userId: req.user.id,
         cartItemId,
@@ -162,10 +138,6 @@ export class CartController {
       }
 
       const cartItemId = Number(req.params.id);
-
-      if (isNaN(cartItemId) || cartItemId <= 0) {
-        return failure(res, 400, "ID do item do carrinho inválido");
-      }
 
       const dto: RemoveCartItemDTO = {
         userId: req.user.id,

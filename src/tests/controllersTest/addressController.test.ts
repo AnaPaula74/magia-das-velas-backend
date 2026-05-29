@@ -10,7 +10,7 @@ import {
   deleteAddress,
 } from "../../controllers/addressController.js";
 
-import AddressRepository from "../../repositories/addressRepository.js";
+import AddressService from "../../services/addressService.js";
 import AuditService from "../../services/auditService.js";
 
 const mockResponse = (): Response => {
@@ -26,7 +26,7 @@ describe("AddressController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    jest.spyOn(AuditService.prototype, "log").mockResolvedValue(undefined as any);
+    jest.spyOn(AuditService.prototype, "log").mockResolvedValue(undefined);
   });
 
   describe("listAddresses", () => {
@@ -39,8 +39,8 @@ describe("AddressController", () => {
         },
       ];
 
-      jest
-        .spyOn(AddressRepository.prototype, "getByUser")
+      const listSpy = jest
+        .spyOn(AddressService.prototype, "list")
         .mockResolvedValue(addresses as any);
 
       const req = {
@@ -51,6 +51,7 @@ describe("AddressController", () => {
 
       await listAddresses(req, res);
 
+      expect(listSpy).toHaveBeenCalledWith(1);
       expect(res.status).toHaveBeenCalledWith(200);
 
       expect(res.json).toHaveBeenCalledWith({
@@ -77,7 +78,7 @@ describe("AddressController", () => {
 
     it("retorna erro interno", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "getByUser")
+        .spyOn(AddressService.prototype, "list")
         .mockRejectedValue(new Error("Erro interno"));
 
       const req = {
@@ -100,8 +101,15 @@ describe("AddressController", () => {
   describe("addAddress", () => {
     it("cria endereço", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "create")
-        .mockResolvedValue({} as any);
+        .spyOn(AddressService.prototype, "create")
+        .mockResolvedValue({
+          id: 1,
+          user_id: 1,
+          street: "Rua Teste",
+          city: "Rio",
+          state: "RJ",
+          zip: "20000-000",
+        });
 
       const req = {
         user: { id: 1 },
@@ -144,7 +152,7 @@ describe("AddressController", () => {
 
     it("retorna erro interno", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "create")
+        .spyOn(AddressService.prototype, "create")
         .mockRejectedValue(new Error("Erro ao criar"));
 
       const req = {
@@ -173,8 +181,15 @@ describe("AddressController", () => {
   describe("updateAddress", () => {
     it("atualiza endereço", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "update")
-        .mockResolvedValue({} as any);
+        .spyOn(AddressService.prototype, "update")
+        .mockResolvedValue({
+          addressId: 1,
+          userId: 1,
+          street: "Rua Nova",
+          city: "Rio",
+          state: "RJ",
+          zip: "21000-000",
+        });
 
       const req = {
         user: { id: 1 },
@@ -201,7 +216,7 @@ describe("AddressController", () => {
 
     it("retorna erro interno", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "update")
+        .spyOn(AddressService.prototype, "update")
         .mockRejectedValue(new Error("Erro ao atualizar"));
 
       const req = {
@@ -226,8 +241,12 @@ describe("AddressController", () => {
   describe("deleteAddress", () => {
     it("remove endereço", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "delete")
-        .mockResolvedValue({} as any);
+        .spyOn(AddressService.prototype, "delete")
+        .mockResolvedValue({
+          addressId: 1,
+          userId: 1,
+          deleted: true,
+        });
 
       const req = {
         user: { id: 1 },
@@ -248,7 +267,7 @@ describe("AddressController", () => {
 
     it("retorna erro interno", async () => {
       jest
-        .spyOn(AddressRepository.prototype, "delete")
+        .spyOn(AddressService.prototype, "delete")
         .mockRejectedValue(new Error("Erro ao remover"));
 
       const req = {

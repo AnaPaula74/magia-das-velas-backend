@@ -38,7 +38,7 @@ async function main() {
 
   console.log("Admin seed criado/atualizado com sucesso.");
   console.log(`Email: ${email}`);
-  console.log(`Senha padrão: ${password}`);
+  console.log("Senha definida via SEED_ADMIN_PASSWORD ou padrão local de desenvolvimento.");
 }
 
 main().catch((error) => {

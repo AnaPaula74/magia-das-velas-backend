@@ -3,4 +3,5 @@ export interface ProductQueryDTO {
   limit?: number;
   search?: string;
   order?: "ASC" | "DESC";
+  categoryId?: number;
 }

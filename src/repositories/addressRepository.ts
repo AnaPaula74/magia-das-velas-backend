@@ -1,8 +1,17 @@
 import { connection } from "../config/database.js";
-import type { Address } from "../entities/address.js";
 import { NotFoundError } from "../errors/customErrors.js";
 import { logger } from "../utils/logger.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+
+interface Address {
+  id: number;
+  user_id: number;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  created_at?: Date;
+}
 
 interface AddressRow extends RowDataPacket, Address {}
 

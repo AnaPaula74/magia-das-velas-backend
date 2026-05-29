@@ -44,15 +44,26 @@ export class ProductRepository {
     limit: number,
     offset: number,
     search: string,
-    order: "ASC" | "DESC"
+    order: "ASC" | "DESC",
+    categoryId?: number
   ): Promise<ProductRow[]> {
+    const conditions: string[] = ["name LIKE ?"];
+    const params: unknown[] = [`%${search}%`];
+
+    if (categoryId !== undefined) {
+      conditions.push("category_id = ?");
+      params.push(categoryId);
+    }
+
+    params.push(limit, offset);
+
     const [rows] = (await connection.query(
       `SELECT *
        FROM products
-       WHERE name LIKE ?
+       WHERE ${conditions.join(" AND ")}
        ORDER BY created_at ${order}
        LIMIT ? OFFSET ?`,
-      [`%${search}%`, limit, offset]
+      params
     )) as [ProductRow[], unknown];
 
     return rows;

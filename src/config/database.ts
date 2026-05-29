@@ -1,21 +1,24 @@
 import mysql from "mysql2/promise";
+import type { Pool, PoolConnection } from "mysql2/promise";
 import { logger } from "../utils/logger.js";
 import { env, isTest } from "./env.js";
 
+const testConnection = {
+  query: async () => [[], []],
+
+  getConnection: async () => ({
+    query: async () => [[], []],
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+  }),
+
+  end: async () => {},
+} as unknown as Pool;
+
 export const connection = isTest
-  ? ({
-      query: async () => [[], []],
-
-      getConnection: async () => ({
-        query: async () => [[], []],
-        beginTransaction: async () => {},
-        commit: async () => {},
-        rollback: async () => {},
-        release: () => {},
-      }),
-
-      end: async () => {},
-    } as any)
+  ? testConnection
   : mysql.createPool({
       host: env.DB_HOST,
       port: env.DB_PORT,
@@ -33,7 +36,7 @@ export async function connectDatabase() {
   }
 
   try {
-    const conn = await connection.getConnection();
+    const conn: PoolConnection = await connection.getConnection();
 
     logger.info(
       `Conexão com o banco ${env.DB_NAME} estabelecida usando usuário ${env.DB_USER}`

@@ -1,8 +1,7 @@
 // src/services/categoryService.ts
 
 import CategoryRepository from "../repositories/categoryRepository.js";
-
-import type { Category } from "../entities/category.js";
+import type { Category } from "../repositories/categoryRepository.js";
 
 import {
   ConflictError,

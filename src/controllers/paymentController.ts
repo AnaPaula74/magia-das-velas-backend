@@ -23,10 +23,6 @@ export class PaymentController {
 
       const orderId = Number(req.body.orderId);
 
-      if (isNaN(orderId) || orderId <= 0) {
-        return failure(res, 400, "ID do pedido inválido");
-      }
-
       const dto: CreatePixPaymentDTO = {
         userId: req.user.id,
         orderId,
@@ -60,10 +56,6 @@ export class PaymentController {
       }
 
       const orderId = Number(req.body.orderId);
-
-      if (isNaN(orderId) || orderId <= 0) {
-        return failure(res, 400, "ID do pedido inválido");
-      }
 
       const dto: CreateMercadoPagoPaymentDTO = {
         userId: req.user.id,
@@ -100,10 +92,6 @@ export class PaymentController {
       }
 
       const paymentId = String(req.params.id ?? "").trim();
-
-      if (!paymentId) {
-        return failure(res, 400, "ID do pagamento inválido");
-      }
 
       const status = await this.paymentService.getPaymentStatus(paymentId, req.user.id);
 
@@ -168,10 +156,6 @@ export class PaymentController {
       }
 
       const paymentId = String(req.params.id ?? "").trim();
-
-      if (!paymentId) {
-        return failure(res, 400, "ID do pagamento inválido");
-      }
 
       const result = await this.paymentService.cancelPayment(paymentId, req.user.id);
 

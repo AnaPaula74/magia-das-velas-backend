@@ -49,6 +49,12 @@ const productController = new ProductController();
  *           enum: [ASC, DESC]
  *           example: DESC
  *         description: Ordenação por data de criação
+ *       - in: query
+ *         name: categoryId
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: Filtra produtos por categoria
  *     responses:
  *       200:
  *         description: Produtos listados
@@ -118,6 +124,9 @@ router.get(
  *               stock:
  *                 type: integer
  *                 example: 20
+ *               categoryId:
+ *                 type: integer
+ *                 example: 1
  *               image:
  *                 type: string
  *                 format: binary
@@ -163,7 +172,6 @@ router.post(
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [name, description, price, stock]
  *             properties:
  *               name:
  *                 type: string
@@ -177,6 +185,9 @@ router.post(
  *               stock:
  *                 type: integer
  *                 example: 15
+ *               categoryId:
+ *                 type: integer
+ *                 example: 1
  *               image:
  *                 type: string
  *                 format: binary

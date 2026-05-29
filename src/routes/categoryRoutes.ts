@@ -71,6 +71,9 @@ router.get(
  *               name:
  *                 type: string
  *                 example: Velas
+ *               description:
+ *                 type: string
+ *                 example: Velas ritualísticas e aromáticas
  *     responses:
  *       201:
  *         description: Categoria criada
@@ -113,11 +116,13 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name]
  *             properties:
  *               name:
  *                 type: string
  *                 example: Incensos
+ *               description:
+ *                 type: string
+ *                 example: Incensos naturais e aromáticos
  *     responses:
  *       200:
  *         description: Categoria atualizada
