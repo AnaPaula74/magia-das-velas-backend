@@ -31,6 +31,12 @@ export class ProductController {
           req.body.categoryId !== undefined ? Number(req.body.categoryId) : undefined,
       };
 
+      if (req.body.physicalPrice !== undefined) {
+        dto.physicalPrice = Number(req.body.physicalPrice);
+      } else if (req.body.physical_price !== undefined) {
+        dto.physicalPrice = Number(req.body.physical_price);
+      }
+
       const result = await this.productService.createProduct(dto);
 
       await this.auditService.log({
@@ -114,6 +120,12 @@ export class ProductController {
         name: req.body.name?.trim(),
         description: req.body.description?.trim(),
         price: req.body.price !== undefined ? Number(req.body.price) : undefined,
+        physicalPrice:
+          req.body.physicalPrice !== undefined
+            ? Number(req.body.physicalPrice)
+            : req.body.physical_price !== undefined
+            ? Number(req.body.physical_price)
+            : undefined,
         image_url: req.file ? `/uploads/${req.file.filename}` : undefined,
         stock: req.body.stock !== undefined ? Number(req.body.stock) : undefined,
         categoryId:

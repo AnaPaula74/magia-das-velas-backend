@@ -15,6 +15,11 @@ export const productSchema = z.object({
     .number()
     .positive("Preço deve ser positivo"),
 
+  physicalPrice: z.coerce
+    .number()
+    .positive("Preço da loja física deve ser positivo")
+    .optional(),
+
   stock: z.coerce
     .number()
     .int()

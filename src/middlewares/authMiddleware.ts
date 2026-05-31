@@ -39,11 +39,7 @@ export function authMiddleware(
       return failure(res, 401, "Token inválido");
     }
 
-    const decoded = verifyAccessToken(token) as {
-      id: number;
-      email: string;
-      role: string;
-    };
+    const decoded = verifyAccessToken(token);
 
     req.user = decoded;
 

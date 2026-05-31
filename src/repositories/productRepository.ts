@@ -6,6 +6,7 @@ export interface ProductRow extends RowDataPacket {
   name: string;
   description: string;
   price: number;
+  physical_price: number;
   image_url: string;
   stock: number;
   category_id: number | null;
@@ -16,6 +17,7 @@ export interface UpdateProductRepositoryDTO {
   name?: string;
   description?: string;
   price?: number;
+  physical_price?: number;
   image_url?: string;
   stock?: number;
   category_id?: number | null;
@@ -26,15 +28,16 @@ export class ProductRepository {
     name: string,
     description: string,
     price: number,
+    physicalPrice: number,
     imageUrl: string,
     stock: number,
     categoryId: number | null
   ): Promise<ResultSetHeader> {
     const [result] = (await connection.query(
       `INSERT INTO products
-        (name, description, price, image_url, stock, category_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, description, price, imageUrl, stock, categoryId]
+        (name, description, price, physical_price, image_url, stock, category_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, description, price, physicalPrice, imageUrl, stock, categoryId]
     )) as [ResultSetHeader, unknown];
 
     return result;
@@ -98,6 +101,11 @@ export class ProductRepository {
     if (data.price !== undefined) {
       fields.push("price = ?");
       values.push(data.price);
+    }
+
+    if (data.physical_price !== undefined) {
+      fields.push("physical_price = ?");
+      values.push(data.physical_price);
     }
 
     if (data.image_url !== undefined) {

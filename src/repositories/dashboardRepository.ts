@@ -6,6 +6,14 @@ export interface StatsRow extends RowDataPacket {
   totalUsers: number;
   totalOrders: number;
   totalSales: number;
+  totalOnlineOrders: number;
+  totalPosOrders: number;
+  totalOnlineSales: number;
+  totalPosSales: number;
+  salesCash: number;
+  salesCard: number;
+  salesPix: number;
+  salesMercadopago: number;
 }
 
 export interface TopProductRow extends RowDataPacket {
@@ -32,7 +40,15 @@ export default class DashboardRepository {
         (SELECT COUNT(*) FROM products) AS totalProducts,
         (SELECT COUNT(*) FROM users) AS totalUsers,
         (SELECT COUNT(*) FROM orders) AS totalOrders,
-        (SELECT COALESCE(SUM(total), 0) FROM orders) AS totalSales`
+        (SELECT COALESCE(SUM(total), 0) FROM orders) AS totalSales,
+        (SELECT COUNT(*) FROM orders WHERE source = 'online') AS totalOnlineOrders,
+        (SELECT COUNT(*) FROM orders WHERE source = 'pos') AS totalPosOrders,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE source = 'online') AS totalOnlineSales,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE source = 'pos') AS totalPosSales,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE payment_method = 'cash') AS salesCash,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE payment_method = 'card') AS salesCard,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE payment_method = 'pix') AS salesPix,
+        (SELECT COALESCE(SUM(total), 0) FROM orders WHERE payment_method = 'mercadopago') AS salesMercadopago`
     )) as [StatsRow[], unknown];
 
     return rows[0] ?? null;
