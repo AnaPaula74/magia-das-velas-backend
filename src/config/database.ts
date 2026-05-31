@@ -1,5 +1,10 @@
 import mysql from "mysql2/promise";
-import type { Pool, PoolConnection } from "mysql2/promise";
+import type {
+  Pool,
+  PoolConnection,
+  PoolOptions,
+} from "mysql2/promise";
+
 import { logger } from "../utils/logger.js";
 import { env, isTest } from "./env.js";
 
@@ -17,17 +22,29 @@ const testConnection = {
   end: async () => {},
 } as unknown as Pool;
 
+const shouldUseSsl =
+  env.DB_HOST.includes("aivencloud.com") ||
+  process.env.DB_SSL === "true";
+
+const poolConfig: PoolOptions = {
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+};
+
+if (shouldUseSsl) {
+  poolConfig.ssl = {
+    rejectUnauthorized: false,
+  };
+}
+
 export const connection = isTest
   ? testConnection
-  : mysql.createPool({
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      user: env.DB_USER,
-      password: env.DB_PASSWORD,
-      database: env.DB_NAME,
-      waitForConnections: true,
-      connectionLimit: 10,
-    });
+  : mysql.createPool(poolConfig);
 
 export async function connectDatabase() {
   if (isTest) {

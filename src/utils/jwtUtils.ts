@@ -3,10 +3,12 @@ import { randomUUID } from "crypto";
 import { env } from "../config/env.js";
 import { UnauthorizedError } from "../errors/customErrors.js";
 
+export type JwtUserRole = "user" | "admin" | "cashier";
+
 export interface JwtUserPayload {
   id: number;
   email: string;
-  role: string;
+  role: JwtUserRole;
 }
 
 export interface AccessTokenPayload extends JwtUserPayload {

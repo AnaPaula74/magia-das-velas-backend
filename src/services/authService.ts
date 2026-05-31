@@ -38,7 +38,7 @@ export default class AuthService {
   private async createSession(user: {
     id: number;
     email: string;
-    role: string;
+    role: "user" | "admin" | "cashier";
   }) {
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user);

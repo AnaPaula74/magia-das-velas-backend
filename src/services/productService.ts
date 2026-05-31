@@ -24,6 +24,7 @@ export class ProductService {
       dto.name,
       dto.description,
       dto.price,
+      dto.physicalPrice ?? dto.price,
       dto.image_url ?? "",
       dto.stock,
       dto.categoryId ?? null
@@ -36,6 +37,7 @@ export class ProductService {
       name: dto.name,
       description: dto.description,
       price: dto.price,
+      physical_price: dto.physicalPrice ?? dto.price,
       image_url: dto.image_url ?? "",
       stock: dto.stock,
       categoryId: dto.categoryId ?? null,
@@ -93,6 +95,10 @@ export class ProductService {
       name: dto.name ?? current.name,
       description: dto.description ?? current.description,
       price: dto.price ?? Number(current.price),
+      physical_price:
+        dto.physicalPrice !== undefined
+          ? dto.physicalPrice
+          : Number(current.physical_price),
       image_url: dto.image_url ?? current.image_url ?? "",
       stock: dto.stock ?? current.stock,
       category_id: categoryId,
@@ -100,6 +106,10 @@ export class ProductService {
 
     if (next.price <= 0) {
       throw new ValidationError("Preço deve ser maior que zero");
+    }
+
+    if (next.physical_price <= 0) {
+      throw new ValidationError("Preço da loja física deve ser maior que zero");
     }
 
     if (next.stock < 0) {

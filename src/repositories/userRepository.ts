@@ -11,7 +11,7 @@ interface User {
   name: string;
   email: string;
   password: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "cashier";
   phone?: string | null;
   created_at?: Date;
 }
@@ -55,7 +55,8 @@ export default class UserRepository {
   async create(
     name: string,
     email: string,
-    password: string
+    password: string,
+    role: "user" | "admin" | "cashier" = "user"
   ): Promise<User> {
     const existing = await this.findByEmailOptional(email);
 
@@ -65,8 +66,8 @@ export default class UserRepository {
     }
 
     const [result] = (await connection.query(
-      "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-      [name, email, password]
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+      [name, email, password, role]
     )) as [ResultSetHeader, unknown];
 
     logger.info(`Usuário criado: ${email}`);
